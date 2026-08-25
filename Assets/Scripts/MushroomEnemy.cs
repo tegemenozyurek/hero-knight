@@ -47,13 +47,18 @@ public class MushroomEnemy : MonoBehaviour
     float _attackCool;
     bool _pendingPlayerHit;
     Transform _player;
+    bool _useAttack2;
+
+    const string Attack1State = "MushroomAttact1";
+    const string Attack2State = "MushroomAttact2";
 
     static readonly int AnimStateHash = Animator.StringToHash("AnimState");
     static readonly int HurtHash = Animator.StringToHash("Hurt");
     static readonly int DeathHash = Animator.StringToHash("Death");
-    static readonly int Attack1Hash = Animator.StringToHash("Attack1");
     static readonly RaycastHit2D[] Hits = new RaycastHit2D[8];
     static Transform _playerCache;
+
+    string AttackState => _useAttack2 ? Attack2State : Attack1State;
 
     public void ConfigurePatrol(float minX, float maxX, int dir)
     {
@@ -75,6 +80,7 @@ public class MushroomEnemy : MonoBehaviour
         maxHealth = stats.MaxHealth;
         moveSpeed = stats.MoveSpeed;
         chaseSpeed = stats.ChaseSpeed;
+        _useAttack2 = stats.UseAttack2;
     }
 
     public void TakeHit(Transform attacker, float knockback)
@@ -348,8 +354,7 @@ public class MushroomEnemy : MonoBehaviour
         _idleTime = 0f;
         _pendingTurn = false;
         _pendingPlayerHit = true;
-        _animator.ResetTrigger(Attack1Hash);
-        _animator.Play("MushroomAttact1", 0, 0f);
+        _animator.Play(AttackState, 0, 0f);
     }
 
     void TryStrikePlayer()
@@ -358,7 +363,7 @@ public class MushroomEnemy : MonoBehaviour
             return;
 
         AnimatorStateInfo info = _animator.GetCurrentAnimatorStateInfo(0);
-        if (!info.IsName("MushroomAttact1"))
+        if (!info.IsName(AttackState))
             return;
         if (info.normalizedTime < strikeNormalized)
             return;

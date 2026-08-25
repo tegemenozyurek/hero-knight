@@ -237,3 +237,4 @@ MonoBehaviour:
   maxHealth: 6
   moveSpeed: 0.8
   chaseSpeed: 1.35
+  useAttack2: 1
