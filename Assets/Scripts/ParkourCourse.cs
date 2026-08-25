@@ -46,18 +46,15 @@ public class ParkourCourse : MonoBehaviour
     static readonly Color Accent = new Color(0.55f, 0.62f, 0.48f);
     static readonly Color Slide = new Color(0.48f, 0.34f, 0.30f);
     static readonly Color Climb = new Color(0.30f, 0.38f, 0.52f);
-    static readonly Color Drop = new Color(0.42f, 0.28f, 0.46f);
-    static readonly Color Short = new Color(0.62f, 0.18f, 0.18f);
     static readonly Color Gold = new Color(0.93f, 0.76f, 0.22f);
 
+    // Jump reach ~2.5 high / ~3.0 across. Wall jump ~1.2 high / ~2.6 across.
     static readonly Checkpoint[] Checkpoints =
     {
-        new Checkpoint(21f, -1f, 20.8f, 0.7f),
-        new Checkpoint(39f, -1f, 39.2f, 0.7f),
-        new Checkpoint(57f, 9.5f, 58.4f, 11.2f),
-        new Checkpoint(75f, 8.5f, 76.8f, 10.1f),
-        new Checkpoint(88f, -1f, 89f, 0.7f),
-        new Checkpoint(110f, 8.5f, 111.2f, 10.1f)
+        new Checkpoint(16.5f, -1f, 17.2f, 0.65f),
+        new Checkpoint(31.5f, 7.2f, 32.4f, 8.55f),
+        new Checkpoint(41.5f, 6.4f, 42.6f, 7.75f),
+        new Checkpoint(55.5f, 7.6f, 56.4f, 8.95f)
     };
 
     void Awake()
@@ -115,62 +112,42 @@ public class ParkourCourse : MonoBehaviour
     {
         return new[]
         {
-            // Start
-            new Block("StartFloor", -6f, -0.5f, 18f, 1f, Ground),
-            new Block("StartWall", -15.2f, 3f, 1.2f, 8f, Slide),
+            // Hall
+            new Block("StartFloor", -6f, -0.5f, 16f, 1f, Ground),
+            new Block("StartWall", -14.2f, 2.6f, 1.2f, 7.2f, Slide),
 
-            // A: long RIGHT slide (hold D). Wall hangs above the pad.
-            new Block("A_Step1", 5.4f, 0.7f, 2.6f, 0.5f, Stone),
-            new Block("A_Step2", 8.8f, 2.1f, 2.5f, 0.5f, Stone),
-            new Block("A_Step3", 12.2f, 3.6f, 2.5f, 0.5f, Stone),
-            new Block("A_Ledge", 16f, 5.3f, 3.4f, 0.55f, Accent),
-            new Block("A_SlideWall", 19.6f, 6.4f, 1.3f, 8f, Slide),
-            new Block("A_Landing", 20.8f, 0.25f, 8.4f, 0.5f, Accent),
+            new Block("A_Step", 4.1f, 0.4f, 2.6f, 0.5f, Stone),
+            new Block("A_Pad", 8.2f, 1.15f, 2.8f, 0.5f, Stone),
 
-            // B: LEFT slide (hold A). Drop into a hole, wall on your left.
-            new Block("B_Rise1", 27.2f, 1.5f, 2.4f, 0.5f, Stone),
-            new Block("B_Rise2", 30.4f, 3f, 2.4f, 0.5f, Stone),
-            new Block("B_LedgeL", 33.4f, 6.9f, 4.4f, 0.55f, Accent),
-            new Block("B_LeftWall", 35.35f, 3.45f, 1.25f, 6.5f, Slide),
-            new Block("B_LedgeR", 41f, 6.9f, 3.4f, 0.55f, Stone),
-            new Block("B_Landing", 39.2f, 0.25f, 8.2f, 0.5f, Accent),
+            // Drop-slide. Hold D, ride the wall down, drop onto the pad.
+            new Block("B_Ledge", 12.2f, 3.2f, 3.1f, 0.5f, Accent),
+            new Block("B_Wall", 15.55f, 4f, 1.2f, 5.6f, Slide),
+            new Block("B_Landing", 16.9f, 0.2f, 6.6f, 0.4f, Accent),
 
-            // C: tight climb. Right wall is shorter so you can exit over it.
-            new Block("C_Entry", 47.2f, 0.25f, 3.6f, 0.5f, Stone),
-            new Block("C_WallL", 50.4f, 6.2f, 1.2f, 12.2f, Climb),
-            new Block("C_WallR", 54.6f, 4.7f, 1.2f, 8.4f, Climb),
-            new Block("C_PitFloor", 52.5f, 0.15f, 3.2f, 0.3f, Ground),
-            new Block("C_Exit", 58.4f, 10.7f, 4.2f, 0.6f, Accent),
+            // Tight well. Inner gap ~2.55 — one short wall kick across.
+            new Block("C_Entry", 22.4f, 0.2f, 3.2f, 0.4f, Stone),
+            new Block("C_WallL", 25.15f, 4.7f, 1.15f, 9f, Climb),
+            new Block("C_WallR_Low", 28.85f, 1.75f, 1.15f, 3.1f, Climb),
+            new Block("C_Rest", 30.35f, 3.5f, 2.1f, 0.4f, Accent),
+            new Block("C_WallR_High", 28.85f, 5.9f, 1.15f, 3.6f, Climb),
+            new Block("C_Exit", 32.5f, 8.15f, 3.4f, 0.5f, Accent),
 
-            // D: wide climb. Longer wall jump.
-            new Block("D_Entry", 63.2f, 10.7f, 3.4f, 0.6f, Stone),
-            new Block("D_WallL", 66.4f, 6.4f, 1.2f, 11.4f, Climb),
-            new Block("D_WallR", 72.8f, 4.9f, 1.2f, 8.6f, Climb),
-            new Block("D_PitFloor", 69.6f, 0.15f, 5.4f, 0.3f, Ground),
-            new Block("D_Exit", 76.8f, 9.6f, 4.2f, 0.6f, Accent),
+            // Committed 3.0 gap. Miss = fall.
+            new Block("D_Run", 36.6f, 8.15f, 2.6f, 0.5f, Stone),
+            new Block("D_Land", 42.4f, 7.35f, 3f, 0.5f, Accent),
 
-            // E: walk off a high ledge into a wall, slide the rest.
-            new Block("E_DropLedge", 81.8f, 9.6f, 3.6f, 0.6f, Stone),
-            new Block("E_DropWall", 85.9f, 5.1f, 1.3f, 7.4f, Drop),
-            new Block("E_Landing", 86.8f, 0.25f, 8f, 0.5f, Accent),
+            // Short second well, then a long slide down to the end.
+            new Block("E_Entry", 46.8f, 7.35f, 2.6f, 0.5f, Stone),
+            new Block("E_WallL", 49.2f, 6.2f, 1.15f, 7.4f, Climb),
+            new Block("E_WallR", 52.85f, 4.7f, 1.15f, 5.2f, Climb),
+            new Block("E_Exit", 56.5f, 8.55f, 3.2f, 0.5f, Accent),
 
-            // F: zigzag up and right. Stand on the RIGHT of each wall, hold A, jump off.
-            new Block("F_Rise", 93.6f, 1.5f, 2.6f, 0.5f, Stone),
-            new Block("F_Ledge1", 97.8f, 3.15f, 3.8f, 0.5f, Accent),
-            new Block("F_Wall1", 96.2f, 5.5f, 1.2f, 5.2f, Climb),
-            new Block("F_Ledge2", 104.2f, 6.35f, 3.6f, 0.5f, Stone),
-            new Block("F_Wall2", 102.7f, 8.7f, 1.2f, 5.2f, Climb),
-            new Block("F_Exit", 111.2f, 9.55f, 4f, 0.55f, Accent),
+            new Block("F_Ledge", 60.2f, 8.55f, 2.8f, 0.5f, Stone),
+            new Block("F_Wall", 63.35f, 4.7f, 1.2f, 7.2f, Slide),
+            new Block("F_Landing", 64.6f, 0.25f, 6.4f, 0.5f, Accent),
 
-            // G: red short wall should not slide. Blue tall wall should.
-            new Block("G_Floor", 117.2f, 0.25f, 7.2f, 0.5f, Stone),
-            new Block("G_ShortWall", 121.8f, 0.85f, 1.2f, 0.7f, Short),
-            new Block("G_Approach", 125.4f, 0.25f, 3.2f, 0.5f, Stone),
-            new Block("G_TallWall", 124.1f, 3.2f, 1.25f, 5.4f, Climb),
-            new Block("G_HighPad", 129.8f, 4.7f, 3.2f, 0.5f, Accent),
-
-            new Block("Finish", 135.4f, 4.7f, 6.6f, 0.9f, Gold),
-            new Block("FinishBack", 138.9f, 7.3f, 1.2f, 4.4f, Slide)
+            new Block("Finish", 70.4f, 0.45f, 6.2f, 0.9f, Gold),
+            new Block("FinishBack", 73.7f, 2.9f, 1.2f, 4f, Slide)
         };
     }
 
@@ -212,10 +189,12 @@ public class ParkourCourse : MonoBehaviour
         {
             Block block = layout[i];
             Gizmos.color = new Color(block.Color.r, block.Color.g, block.Color.b, 0.9f);
-            Gizmos.DrawCube(new Vector3(block.Position.x, block.Position.y, 0f), new Vector3(block.Size.x, block.Size.y, 0.2f));
+            Gizmos.DrawCube(
+                new Vector3(block.Position.x, block.Position.y, 0f),
+                new Vector3(block.Size.x, block.Size.y, 0.2f));
         }
 
         Gizmos.color = new Color(0.8f, 0.15f, 0.15f, 0.35f);
-        Gizmos.DrawCube(new Vector3(60f, killY, 0f), new Vector3(160f, 0.2f, 0.2f));
+        Gizmos.DrawCube(new Vector3(30f, killY, 0f), new Vector3(90f, 0.2f, 0.2f));
     }
 }
