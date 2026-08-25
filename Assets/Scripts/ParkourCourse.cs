@@ -1,12 +1,10 @@
-using System.Collections.Generic;
 using UnityEngine;
 
 public class ParkourCourse : MonoBehaviour
 {
     [SerializeField] Sprite platformSprite;
     [SerializeField] Transform player;
-    [SerializeField] MushroomEnemy mushroomPrefab;
-    [SerializeField] Vector3 mushroomScale = new Vector3(2.5f, 2.5f, 2.5f);
+    [SerializeField] MushroomEnemy[] mushroomPrefabs;
     [SerializeField] float killY = -8f;
 
     Vector3 _spawnPosition;
@@ -46,14 +44,16 @@ public class ParkourCourse : MonoBehaviour
 
     struct MushroomSpot
     {
+        public int Prefab;
         public float X;
         public float Y;
         public float MinX;
         public float MaxX;
         public int Dir;
 
-        public MushroomSpot(float x, float y, float minX, float maxX, int dir)
+        public MushroomSpot(int prefab, float x, float y, float minX, float maxX, int dir)
         {
+            Prefab = prefab;
             X = x;
             Y = y;
             MinX = minX;
@@ -63,68 +63,32 @@ public class ParkourCourse : MonoBehaviour
     }
 
     static readonly Color Ground = new Color(0.28f, 0.32f, 0.36f);
-    static readonly Color Accent = new Color(0.55f, 0.62f, 0.48f);
     static readonly Color Slide = new Color(0.48f, 0.34f, 0.30f);
     static readonly Color Gold = new Color(0.93f, 0.76f, 0.22f);
+    static readonly Color BabyCol = new Color(0.70f, 0.78f, 0.52f);
+    static readonly Color YoungCol = new Color(0.55f, 0.62f, 0.48f);
+    static readonly Color FastCol = new Color(0.30f, 0.52f, 0.66f);
+    static readonly Color MatureCol = new Color(0.46f, 0.38f, 0.34f);
+    static readonly Color GiantCol = new Color(0.26f, 0.50f, 0.32f);
 
     static readonly Checkpoint[] Checkpoints =
     {
-        new Checkpoint(9f, -1f, 9.4f, 0.05f),
-        new Checkpoint(26f, -1f, 26.4f, 0.05f),
-        new Checkpoint(48f, -1f, 48.4f, 0.05f),
-        new Checkpoint(68f, -1f, 68.4f, 0.05f)
+        new Checkpoint(-6.8f, -1f, -6.6f, 0.05f),
+        new Checkpoint(3.2f, -1f, 4.8f, 0.05f),
+        new Checkpoint(16.2f, -1f, 15.2f, 0.05f),
+        new Checkpoint(39.2f, -1f, 38.2f, 0.05f),
+        new Checkpoint(53.6f, -1f, 52.8f, 0.05f),
+        new Checkpoint(72f, -1f, 72.8f, 0.15f)
     };
 
-    static readonly MushroomSpot[] MushroomSpawns = CreateMushroomSpawns();
-
-    static MushroomSpot[] CreateMushroomSpawns()
+    static readonly MushroomSpot[] MushroomSpawns =
     {
-        List<MushroomSpot> spots = new List<MushroomSpot>(40);
-        AddLane(spots, -8f, 10f, 7);
-        AddLane(spots, 12f, 28f, 7);
-        AddLane(spots, 30.2f, 50f, 8);
-        AddLane(spots, 51.8f, 70f, 8);
-        AddLane(spots, 71f, 84.2f, 6);
-        return spots.ToArray();
-    }
-
-    static void AddLane(List<MushroomSpot> spots, float left, float right, int count)
-    {
-        const float y = 1.3f;
-        const float inset = 1.2f;
-        float minX = left + inset;
-        float maxX = right - inset;
-        float mid = (minX + maxX) * 0.5f;
-
-        for (int i = 0; i < count; i++)
-        {
-            float t = (i + 0.5f) / count;
-            float x = Mathf.Lerp(minX, maxX, t);
-            int dir = (i % 2 == 0) ? 1 : -1;
-
-            float patrolMin;
-            float patrolMax;
-            int kind = i % 3;
-            if (kind == 0)
-            {
-                patrolMin = minX;
-                patrolMax = maxX;
-            }
-            else if (kind == 1)
-            {
-                patrolMin = minX;
-                patrolMax = mid + 1.2f;
-            }
-            else
-            {
-                patrolMin = mid - 1.2f;
-                patrolMax = maxX;
-            }
-
-            x = Mathf.Clamp(x, patrolMin + 0.2f, patrolMax - 0.2f);
-            spots.Add(new MushroomSpot(x, y, patrolMin, patrolMax, dir));
-        }
-    }
+        new MushroomSpot(0, -1.4f, 0.85f, -4.4f, 1.6f, 1),
+        new MushroomSpot(1, 10f, 0.95f, 5.4f, 14.6f, -1),
+        new MushroomSpot(2, 31f, 0.85f, 24.2f, 37.8f, 1),
+        new MushroomSpot(3, 47f, 1.05f, 41.8f, 52.2f, -1),
+        new MushroomSpot(4, 62.6f, 1.2f, 56f, 69.2f, 1)
+    };
 
     void Awake()
     {
@@ -183,31 +147,40 @@ public class ParkourCourse : MonoBehaviour
     {
         return new[]
         {
-            new Block("StartWall", -16.4f, 2.6f, 1.4f, 7.2f, Slide),
-            new Block("StartFloor", -12f, -0.5f, 8f, 1f, Ground),
-            new Block("A1_Floor", 1f, -0.5f, 18f, 1f, Ground),
-            new Block("A2_Floor", 20f, -0.5f, 16f, 1f, Accent),
-            new Block("A3_Floor", 40.1f, -0.5f, 19.8f, 1f, Ground),
-            new Block("A4_Floor", 60.9f, -0.5f, 18.2f, 1f, Accent),
-            new Block("Finish", 77.6f, -0.4f, 13.2f, 1.2f, Gold),
-            new Block("FinishBack", 84.6f, 2.6f, 1.2f, 5.2f, Slide)
+            new Block("StartWall", -17.6f, 2.6f, 1.4f, 7.2f, Slide),
+            new Block("StartFloor", -12f, -0.5f, 10f, 1f, Ground),
+            new Block("BabyFloor", -1.4f, -0.5f, 8f, 1f, BabyCol),
+            new Block("YoungFloor", 10f, -0.5f, 11.2f, 1f, YoungCol),
+            new Block("HopA", 17.5f, 0.15f, 1.6f, 0.5f, Slide),
+            new Block("HopB", 20.3f, 0.85f, 1.5f, 0.5f, Slide),
+            new Block("FastFloor", 31f, -0.5f, 16f, 1f, FastCol),
+            new Block("MatureFloor", 47f, -0.5f, 12.8f, 1f, MatureCol),
+            new Block("GiantFloor", 62.6f, -0.5f, 16f, 1f, GiantCol),
+            new Block("Finish", 77.2f, -0.4f, 10.4f, 1.2f, Gold),
+            new Block("FinishBack", 82.8f, 2.8f, 1.2f, 5.6f, Slide)
         };
     }
 
     void SpawnMushrooms()
     {
-        if (mushroomPrefab == null)
+        if (mushroomPrefabs == null || mushroomPrefabs.Length == 0)
             return;
 
         for (int i = 0; i < MushroomSpawns.Length; i++)
         {
             MushroomSpot spot = MushroomSpawns[i];
+            if (spot.Prefab < 0 || spot.Prefab >= mushroomPrefabs.Length)
+                continue;
+
+            MushroomEnemy prefab = mushroomPrefabs[spot.Prefab];
+            if (prefab == null)
+                continue;
+
             MushroomEnemy enemy = Instantiate(
-                mushroomPrefab,
+                prefab,
                 new Vector3(spot.X, spot.Y, 0f),
                 Quaternion.identity);
-            enemy.name = "Mushroom_" + (i + 1);
-            enemy.transform.localScale = mushroomScale;
+            enemy.name = prefab.name;
             enemy.transform.SetParent(transform, true);
             enemy.ConfigurePatrol(spot.MinX, spot.MaxX, spot.Dir);
         }
@@ -265,6 +238,6 @@ public class ParkourCourse : MonoBehaviour
         }
 
         Gizmos.color = new Color(0.8f, 0.15f, 0.15f, 0.35f);
-        Gizmos.DrawCube(new Vector3(34f, killY, 0f), new Vector3(120f, 0.2f, 0.2f));
+        Gizmos.DrawCube(new Vector3(33f, killY, 0f), new Vector3(110f, 0.2f, 0.2f));
     }
 }

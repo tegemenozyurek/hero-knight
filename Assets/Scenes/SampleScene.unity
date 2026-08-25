@@ -689,8 +689,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ParkourCourse
   platformSprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
   player: {fileID: 2001116486}
-  mushroomPrefab: {fileID: 2054790369438838473, guid: 32944d456242442f9a3a3c4e871e1d27, type: 3}
-  mushroomScale: {x: 2.5, y: 2.5, z: 2.5}
+  mushroomPrefabs:
+  - {fileID: 2054790369438838473, guid: 60e72570351d74e28bed79dcf4338371, type: 3}
+  - {fileID: 2054790369438838473, guid: 5fc2d5648e60640e9b3e80caeb3b9828, type: 3}
+  - {fileID: 2054790369438838473, guid: 754e4aa5d632944dab0702c687e4a4d9, type: 3}
+  - {fileID: 2054790369438838473, guid: 78bf7c47abda340a792b602fbaa7f9b8, type: 3}
+  - {fileID: 2054790369438838473, guid: 3efaf5d438339443f82a2b1606c4f926, type: 3}
   killY: -8
 --- !u!1 &1562566694
 GameObject:
@@ -1230,6 +1234,13 @@ MonoBehaviour:
   lightLunge: 2.4
   heavyLockTime: 0.58
   heavyLunge: 3.6
+  hitboxSize: {x: 1.4, y: 1.15}
+  hitboxForward: 1.05
+  hitboxHeight: 0.72
+  lightHitDelay: 0.08
+  heavyHitDelay: 0.12
+  lightKnockback: 4.8
+  heavyKnockback: 6.4
 --- !u!1 &2053881557
 GameObject:
   m_ObjectHideFlags: 0

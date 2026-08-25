@@ -51,8 +51,8 @@ public class PlayerMovement : MonoBehaviour
     public bool IsRolling => _rolling;
     public bool IsWallSliding => _wallSliding;
     public int Facing => _facing;
-    public bool IsBusy => _rolling || (_attack != null && _attack.IsAttacking);
-    public bool CanStartAttack => !_rolling && !_wallSliding && (_grounded || _coyote > 0f);
+    public bool IsBusy => _rolling || _hurtLock > 0f || (_attack != null && _attack.IsAttacking);
+    public bool CanStartAttack => !_rolling && !_wallSliding && _hurtLock <= 0f && (_grounded || _coyote > 0f);
 
     Rigidbody2D _body;
     Animator _animator;
@@ -83,6 +83,8 @@ public class PlayerMovement : MonoBehaviour
     bool _wallSliding;
     bool _rolling;
     float _idleDelay;
+    float _hurtLock;
+    float _hurtInvuln;
     PlayerAttack _attack;
 
     static readonly int AnimStateHash = Animator.StringToHash("AnimState");
@@ -91,6 +93,7 @@ public class PlayerMovement : MonoBehaviour
     static readonly int JumpHash = Animator.StringToHash("Jump");
     static readonly int WallSlideHash = Animator.StringToHash("WallSlide");
     static readonly int RollHash = Animator.StringToHash("Roll");
+    static readonly int HurtHash = Animator.StringToHash("Hurt");
 
     void Awake()
     {
@@ -154,6 +157,11 @@ public class PlayerMovement : MonoBehaviour
 
     void Update()
     {
+        if (_hurtLock > 0f)
+            _hurtLock -= Time.deltaTime;
+        if (_hurtInvuln > 0f)
+            _hurtInvuln -= Time.deltaTime;
+
         ReadInput();
         UpdateGrounded();
         UpdateWallSlide();
@@ -161,6 +169,30 @@ public class PlayerMovement : MonoBehaviour
         TryStartAttack();
         UpdateFacing();
         UpdateAnimator();
+    }
+
+    public void TakeHit(Transform source)
+    {
+        if (_hurtLock > 0f || _hurtInvuln > 0f || _rolling)
+            return;
+
+        _hurtLock = 0.3f;
+        _hurtInvuln = 0.8f;
+        _jumpBuffer = 0f;
+        if (_attack != null)
+            _attack.Cancel();
+        _animator.ResetTrigger(JumpHash);
+        _animator.ResetTrigger(RollHash);
+        _animator.Play("Hurt", 0, 0f);
+        _animator.SetTrigger(HurtHash);
+
+        if (_body == null || source == null)
+            return;
+
+        int sign = transform.position.x >= source.position.x ? 1 : -1;
+        Vector2 velocity = _body.linearVelocity;
+        velocity.x = sign * 0.9f;
+        _body.linearVelocity = velocity;
     }
 
     void FixedUpdate()
@@ -340,7 +372,7 @@ public class PlayerMovement : MonoBehaviour
             _attack = GetComponent<PlayerAttack>();
         if (_attack == null)
             return;
-        if (_rolling || _wallSliding)
+        if (_rolling || _wallSliding || _hurtLock > 0f)
             return;
 
         if (WasLightAttackPressed())
@@ -353,7 +385,7 @@ public class PlayerMovement : MonoBehaviour
     {
         if (!WasRollPressed())
             return;
-        if (_rolling || _rollCooldown > 0f)
+        if (_rolling || _rollCooldown > 0f || _hurtLock > 0f)
             return;
         if (_attack != null && _attack.IsAttacking)
             return;
@@ -385,6 +417,12 @@ public class PlayerMovement : MonoBehaviour
                 _rolling = false;
                 SetPassThroughMushrooms(false);
             }
+            return;
+        }
+
+        if (_hurtLock > 0f)
+        {
+            velocity.x = Mathf.MoveTowards(velocity.x, 0f, groundDecel * Time.fixedDeltaTime);
             return;
         }
 
@@ -446,6 +484,8 @@ public class PlayerMovement : MonoBehaviour
         if (_jumpBuffer <= 0f)
             return;
         if (_rolling)
+            return;
+        if (_hurtLock > 0f)
             return;
         if (_attack != null && _attack.IsAttacking)
             return;
@@ -542,6 +582,8 @@ public class PlayerMovement : MonoBehaviour
     void UpdateFacing()
     {
         if (_rolling)
+            return;
+        if (_hurtLock > 0f)
             return;
         if (_attack != null && _attack.IsAttacking)
             return;
@@ -655,6 +697,8 @@ public class PlayerMovement : MonoBehaviour
         _animator.SetFloat(AirSpeedYHash, _body.linearVelocity.y);
 
         if (_rolling || _wallSliding || !_grounded)
+            return;
+        if (_hurtLock > 0f)
             return;
         if (_attack != null && _attack.IsAttacking)
             return;

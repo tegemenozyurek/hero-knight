@@ -38,6 +38,14 @@ public class PlayerAttack : MonoBehaviour
 
     public bool IsAttacking => _attackLock > 0f;
 
+    public void Cancel()
+    {
+        _attackLock = 0f;
+        _pendingStrike = false;
+        _comboStep = 0;
+        _comboTimer = 0f;
+    }
+
     void Awake()
     {
         _animator = GetComponent<Animator>();

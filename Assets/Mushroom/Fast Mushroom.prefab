@@ -14,8 +14,9 @@ GameObject:
   - component: {fileID: 7577843187001936013}
   - component: {fileID: 8427293694839374767}
   - component: {fileID: 2054790369438838473}
+  - component: {fileID: 3141592653589793238}
   m_Layer: 0
-  m_Name: Mushroom
+  m_Name: Fast Mushroom
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -30,8 +31,8 @@ Transform:
   m_GameObject: {fileID: 6134116966860351346}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 2.5, y: 2.5, z: 2.5}
+  m_LocalPosition: {x: -6.78, y: 0.95, z: 0}
+  m_LocalScale: {x: 2, y: 2, z: 2}
   m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 0}
@@ -86,7 +87,7 @@ SpriteRenderer:
   m_SortingOrder: 2
   m_MaskInteraction: 0
   m_Sprite: {fileID: 4723107735738678597, guid: f8b30c2afe165d645b54d500a9c30862, type: 3}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_Color: {r: 0, g: 0.7575803, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
@@ -205,11 +206,34 @@ MonoBehaviour:
   moveSpeed: 1.45
   wallCheckDistance: 0.12
   edgeCheckDistance: 0.28
-  idleMin: 1.05
-  idleMax: 1.85
+  idleMin: 0.55
+  idleMax: 0.95
   spriteFacesRight: 1
   maxHealth: 3
   hurtTime: 0.42
   hurtHop: 0
   deathHoldTime: 5
   deathFadeTime: 1.1
+  detectRange: 7.5
+  loseRange: 10
+  attackRange: 1.05
+  strikeReach: 1.12
+  strikeNormalized: 0.76
+  chaseSpeed: 2.4
+  attackTime: 0.82
+  attackCooldown: 0.6
+--- !u!114 &3141592653589793238
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6134116966860351346}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7e2c14a9f834c6d8a1e5b0c3d7f9248, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MushroomAttributes
+  maxHealth: 2
+  moveSpeed: 2.7
+  chaseSpeed: 3.9
