@@ -1482,6 +1482,11 @@ MonoBehaviour:
   wallJumpSpeedY: 9.2
   wallJumpLockTime: 0.1
   wallSensorDisableTime: 0.1
+  rollSpeed: 8.2
+  rollEndSpeed: 3.4
+  rollDuration: 0.62
+  rollCooldown: 0.18
+  rollColliderHeight: 0.48
   groundSensor: {fileID: 1659613543}
   wallSensorR1: {fileID: 262553008}
   wallSensorR2: {fileID: 499446922}

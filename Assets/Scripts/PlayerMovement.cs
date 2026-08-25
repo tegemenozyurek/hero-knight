@@ -30,6 +30,13 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] float wallJumpLockTime = 0.1f;
     [SerializeField] float wallSensorDisableTime = 0.1f;
 
+    [Header("Roll")]
+    [SerializeField] float rollSpeed = 8.2f;
+    [SerializeField] float rollEndSpeed = 3.4f;
+    [SerializeField] float rollDuration = 0.62f;
+    [SerializeField] float rollCooldown = 0.18f;
+    [SerializeField] float rollColliderHeight = 0.48f;
+
     [Header("Sensors")]
     [SerializeField] PlayerSensor groundSensor;
     [SerializeField] PlayerSensor wallSensorR1;
@@ -43,20 +50,29 @@ public class PlayerMovement : MonoBehaviour
     Rigidbody2D _body;
     Animator _animator;
     SpriteRenderer _sprite;
-    Collider2D _collider;
+    BoxCollider2D _box;
     InputAction _moveAction;
     InputAction _jumpAction;
+    InputAction _rollAction;
+
+    Vector2 _standSize;
+    Vector2 _standOffset;
+    readonly Collider2D[] _overlapHits = new Collider2D[8];
 
     float _inputX;
     float _jumpBuffer;
     float _coyote;
     float _wallCoyote;
     float _wallJumpLock;
+    float _rollTime;
+    float _rollCooldown;
     int _facing = 1;
     int _wallDir;
     int _lastWallDir;
+    int _rollDir = 1;
     bool _grounded;
     bool _wallSliding;
+    bool _rolling;
     float _idleDelay;
 
     static readonly int AnimStateHash = Animator.StringToHash("AnimState");
@@ -64,13 +80,14 @@ public class PlayerMovement : MonoBehaviour
     static readonly int AirSpeedYHash = Animator.StringToHash("AirSpeedY");
     static readonly int JumpHash = Animator.StringToHash("Jump");
     static readonly int WallSlideHash = Animator.StringToHash("WallSlide");
+    static readonly int RollHash = Animator.StringToHash("Roll");
 
     void Awake()
     {
         _body = GetComponent<Rigidbody2D>();
         _animator = GetComponent<Animator>();
         _sprite = GetComponent<SpriteRenderer>();
-        _collider = GetComponent<Collider2D>();
+        _box = GetComponent<BoxCollider2D>();
 
         _body.freezeRotation = true;
         _body.gravityScale = gravityScale;
@@ -78,14 +95,20 @@ public class PlayerMovement : MonoBehaviour
         _body.interpolation = RigidbodyInterpolation2D.Interpolate;
         _body.linearDamping = 0f;
 
+        if (_box != null)
+        {
+            _standSize = _box.size;
+            _standOffset = _box.offset;
+        }
+
         PhysicsMaterial2D material = new PhysicsMaterial2D("PlayerNoFriction")
         {
             friction = 0f,
             bounciness = 0f
         };
         _body.sharedMaterial = material;
-        if (_collider != null)
-            _collider.sharedMaterial = material;
+        if (_box != null)
+            _box.sharedMaterial = material;
 
         BindSensors();
         BuildInput();
@@ -95,18 +118,21 @@ public class PlayerMovement : MonoBehaviour
     {
         _moveAction?.Enable();
         _jumpAction?.Enable();
+        _rollAction?.Enable();
     }
 
     void OnDisable()
     {
         _moveAction?.Disable();
         _jumpAction?.Disable();
+        _rollAction?.Disable();
     }
 
     void OnDestroy()
     {
         _moveAction?.Dispose();
         _jumpAction?.Dispose();
+        _rollAction?.Dispose();
     }
 
     void Update()
@@ -114,6 +140,7 @@ public class PlayerMovement : MonoBehaviour
         ReadInput();
         UpdateGrounded();
         UpdateWallSlide();
+        TryStartRoll();
         UpdateFacing();
         UpdateAnimator();
     }
@@ -124,10 +151,14 @@ public class PlayerMovement : MonoBehaviour
 
         if (_wallJumpLock > 0f)
             _wallJumpLock -= Time.fixedDeltaTime;
+        if (_rollCooldown > 0f)
+            _rollCooldown -= Time.fixedDeltaTime;
 
         Move(ref velocity);
         ApplyGravity(ref velocity);
         TryJump(ref velocity);
+        if (!_rolling)
+            TryStandUp();
 
         _body.linearVelocity = velocity;
     }
@@ -167,6 +198,11 @@ public class PlayerMovement : MonoBehaviour
         _jumpAction = new InputAction("Jump", InputActionType.Button);
         _jumpAction.AddBinding("<Keyboard>/space");
         _jumpAction.AddBinding("<Gamepad>/buttonSouth");
+
+        _rollAction = new InputAction("Roll", InputActionType.Button);
+        _rollAction.AddBinding("<Keyboard>/leftShift");
+        _rollAction.AddBinding("<Keyboard>/rightShift");
+        _rollAction.AddBinding("<Gamepad>/buttonEast");
     }
 
     void ReadInput()
@@ -222,8 +258,52 @@ public class PlayerMovement : MonoBehaviour
         return gamepad != null && gamepad.buttonSouth.wasPressedThisFrame;
     }
 
+    bool WasRollPressed()
+    {
+        if (_rollAction != null && _rollAction.WasPressedThisFrame())
+            return true;
+
+        Keyboard keyboard = Keyboard.current;
+        if (keyboard != null && (keyboard.leftShiftKey.wasPressedThisFrame || keyboard.rightShiftKey.wasPressedThisFrame))
+            return true;
+
+        Gamepad gamepad = Gamepad.current;
+        return gamepad != null && gamepad.buttonEast.wasPressedThisFrame;
+    }
+
+    void TryStartRoll()
+    {
+        if (!WasRollPressed())
+            return;
+        if (_rolling || _rollCooldown > 0f)
+            return;
+        if (!_grounded || _wallSliding)
+            return;
+
+        _rollDir = Mathf.Abs(_inputX) > 0.01f ? (_inputX > 0f ? 1 : -1) : _facing;
+        _facing = _rollDir;
+        _sprite.flipX = _facing < 0;
+        _rolling = true;
+        _rollTime = rollDuration;
+        _rollCooldown = rollDuration + rollCooldown;
+        _jumpBuffer = 0f;
+        SetCrouching(true);
+        _animator.ResetTrigger(JumpHash);
+        _animator.SetTrigger(RollHash);
+    }
+
     void Move(ref Vector2 velocity)
     {
+        if (_rolling)
+        {
+            _rollTime -= Time.fixedDeltaTime;
+            float t = rollDuration <= 0f ? 0f : Mathf.Clamp01(_rollTime / rollDuration);
+            velocity.x = _rollDir * Mathf.Lerp(rollEndSpeed, rollSpeed, t);
+            if (_rollTime <= 0f)
+                _rolling = false;
+            return;
+        }
+
         if (_wallJumpLock > 0f)
             return;
 
@@ -274,6 +354,10 @@ public class PlayerMovement : MonoBehaviour
     void TryJump(ref Vector2 velocity)
     {
         if (_jumpBuffer <= 0f)
+            return;
+        if (_rolling)
+            return;
+        if (IsCrouching() && !CanStand())
             return;
 
         if (CanWallJump())
@@ -353,7 +437,7 @@ public class PlayerMovement : MonoBehaviour
         }
 
         bool holdingIntoWall = wallDir != 0 && _inputX * wallDir > 0.1f;
-        _wallSliding = inAir && falling && holdingIntoWall && _wallJumpLock <= 0f;
+        _wallSliding = !_rolling && inAir && falling && holdingIntoWall && _wallJumpLock <= 0f;
         _wallDir = _wallSliding ? wallDir : 0;
         _animator.SetBool(WallSlideHash, _wallSliding);
     }
@@ -365,6 +449,9 @@ public class PlayerMovement : MonoBehaviour
 
     void UpdateFacing()
     {
+        if (_rolling)
+            return;
+
         if (_wallSliding)
         {
             _facing = _wallDir;
@@ -379,6 +466,71 @@ public class PlayerMovement : MonoBehaviour
         _sprite.flipX = _facing < 0;
     }
 
+    void SetCrouching(bool crouch)
+    {
+        if (_box == null)
+            return;
+
+        if (!crouch)
+        {
+            _box.size = _standSize;
+            _box.offset = _standOffset;
+            return;
+        }
+
+        float bottom = _standOffset.y - _standSize.y * 0.5f;
+        float height = Mathf.Min(rollColliderHeight, _standSize.y);
+        _box.size = new Vector2(_standSize.x, height);
+        _box.offset = new Vector2(_standOffset.x, bottom + height * 0.5f);
+    }
+
+    bool IsCrouching()
+    {
+        return _box != null && _box.size.y + 0.001f < _standSize.y;
+    }
+
+    bool CanStand()
+    {
+        if (_box == null)
+            return true;
+
+        float standTop = _standOffset.y + _standSize.y * 0.5f;
+        float crouchTop = (_standOffset.y - _standSize.y * 0.5f) + Mathf.Min(rollColliderHeight, _standSize.y);
+        float headHeight = standTop - crouchTop;
+        if (headHeight <= 0.01f)
+            return true;
+
+        Vector2 worldCenter = (Vector2)transform.position + new Vector2(_standOffset.x, crouchTop + headHeight * 0.5f);
+        Vector2 headSize = new Vector2(_standSize.x * 0.9f, headHeight);
+
+        ContactFilter2D filter = new ContactFilter2D();
+        filter.NoFilter();
+        filter.useTriggers = false;
+
+        int count = Physics2D.OverlapBox(worldCenter, headSize, 0f, filter, _overlapHits);
+        for (int i = 0; i < count; i++)
+        {
+            Collider2D hit = _overlapHits[i];
+            if (hit == null || hit == _box)
+                continue;
+            if (hit.attachedRigidbody == _body)
+                continue;
+            return false;
+        }
+
+        return true;
+    }
+
+    void TryStandUp()
+    {
+        if (!IsCrouching())
+            return;
+        if (!CanStand())
+            return;
+
+        SetCrouching(false);
+    }
+
     void DisableWallSensors()
     {
         wallSensorR1?.Disable(wallSensorDisableTime);
@@ -391,7 +543,7 @@ public class PlayerMovement : MonoBehaviour
     {
         _animator.SetFloat(AirSpeedYHash, _body.linearVelocity.y);
 
-        if (_wallSliding || !_grounded)
+        if (_rolling || _wallSliding || !_grounded)
             return;
 
         if (Mathf.Abs(_inputX) > 0.01f)

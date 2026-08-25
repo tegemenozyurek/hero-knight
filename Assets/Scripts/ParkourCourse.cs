@@ -123,6 +123,8 @@ public class ParkourCourse : MonoBehaviour
             new Block("B_Ledge", 12.2f, 3.2f, 3.1f, 0.5f, Accent),
             new Block("B_Wall", 15.55f, 4f, 1.2f, 5.6f, Slide),
             new Block("B_Landing", 16.9f, 0.2f, 6.6f, 0.4f, Accent),
+            new Block("B_TunnelFloor", 21.8f, 0.2f, 6.4f, 0.4f, Ground),
+            new Block("B_TunnelCeiling", 21.8f, 1.52f, 5.2f, 0.7f, Slide),
 
             // Tight well. Inner gap ~2.55 — one short wall kick across.
             new Block("C_Entry", 22.4f, 0.2f, 3.2f, 0.4f, Stone),
