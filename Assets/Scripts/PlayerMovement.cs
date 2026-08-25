@@ -50,9 +50,10 @@ public class PlayerMovement : MonoBehaviour
     public bool IsGrounded => _grounded;
     public bool IsRolling => _rolling;
     public bool IsWallSliding => _wallSliding;
+    public bool IsBlocking => _blocking;
     public int Facing => _facing;
-    public bool IsBusy => _rolling || _hurtLock > 0f || (_attack != null && _attack.IsAttacking);
-    public bool CanStartAttack => !_rolling && !_wallSliding && _hurtLock <= 0f && (_grounded || _coyote > 0f);
+    public bool IsBusy => _rolling || _blocking || _hurtLock > 0f || (_attack != null && _attack.IsAttacking);
+    public bool CanStartAttack => !_rolling && !_blocking && !_wallSliding && _hurtLock <= 0f && (_grounded || _coyote > 0f);
 
     Rigidbody2D _body;
     Animator _animator;
@@ -63,6 +64,7 @@ public class PlayerMovement : MonoBehaviour
     InputAction _rollAction;
     InputAction _lightAttackAction;
     InputAction _heavyAttackAction;
+    InputAction _blockAction;
 
     Vector2 _standSize;
     Vector2 _standOffset;
@@ -82,6 +84,7 @@ public class PlayerMovement : MonoBehaviour
     bool _grounded;
     bool _wallSliding;
     bool _rolling;
+    bool _blocking;
     float _idleDelay;
     float _hurtLock;
     float _hurtInvuln;
@@ -94,6 +97,7 @@ public class PlayerMovement : MonoBehaviour
     static readonly int WallSlideHash = Animator.StringToHash("WallSlide");
     static readonly int RollHash = Animator.StringToHash("Roll");
     static readonly int HurtHash = Animator.StringToHash("Hurt");
+    static readonly int IdleBlockHash = Animator.StringToHash("IdleBlock");
 
     void Awake()
     {
@@ -135,6 +139,7 @@ public class PlayerMovement : MonoBehaviour
         _rollAction?.Enable();
         _lightAttackAction?.Enable();
         _heavyAttackAction?.Enable();
+        _blockAction?.Enable();
     }
 
     void OnDisable()
@@ -144,6 +149,7 @@ public class PlayerMovement : MonoBehaviour
         _rollAction?.Disable();
         _lightAttackAction?.Disable();
         _heavyAttackAction?.Disable();
+        _blockAction?.Disable();
     }
 
     void OnDestroy()
@@ -153,6 +159,7 @@ public class PlayerMovement : MonoBehaviour
         _rollAction?.Dispose();
         _lightAttackAction?.Dispose();
         _heavyAttackAction?.Dispose();
+        _blockAction?.Dispose();
     }
 
     void Update()
@@ -165,6 +172,7 @@ public class PlayerMovement : MonoBehaviour
         ReadInput();
         UpdateGrounded();
         UpdateWallSlide();
+        UpdateBlock();
         TryStartRoll();
         TryStartAttack();
         UpdateFacing();
@@ -176,6 +184,20 @@ public class PlayerMovement : MonoBehaviour
         if (_hurtLock > 0f || _hurtInvuln > 0f || _rolling)
             return;
 
+        if (_blocking && IsFacingSource(source))
+        {
+            if (_body != null && source != null)
+            {
+                int away = transform.position.x >= source.position.x ? 1 : -1;
+                Vector2 blocked = _body.linearVelocity;
+                blocked.x = away * 0.35f;
+                _body.linearVelocity = blocked;
+            }
+            _animator.Play("Block", 0, 0f);
+            return;
+        }
+
+        StopBlock();
         _hurtLock = 0.3f;
         _hurtInvuln = 0.8f;
         _jumpBuffer = 0f;
@@ -264,6 +286,11 @@ public class PlayerMovement : MonoBehaviour
         _heavyAttackAction.AddBinding("<Keyboard>/l");
         _heavyAttackAction.AddBinding("<Mouse>/rightButton");
         _heavyAttackAction.AddBinding("<Gamepad>/buttonNorth");
+
+        _blockAction = new InputAction("Block", InputActionType.Button);
+        _blockAction.AddBinding("<Keyboard>/j");
+        _blockAction.AddBinding("<Keyboard>/leftCtrl");
+        _blockAction.AddBinding("<Gamepad>/leftShoulder");
     }
 
     void ReadInput()
@@ -366,13 +393,70 @@ public class PlayerMovement : MonoBehaviour
         return gamepad != null && gamepad.buttonNorth.wasPressedThisFrame;
     }
 
+    bool IsBlockHeld()
+    {
+        if (_blockAction != null && _blockAction.IsPressed())
+            return true;
+
+        Keyboard keyboard = Keyboard.current;
+        if (keyboard != null && (keyboard.jKey.isPressed || keyboard.leftCtrlKey.isPressed))
+            return true;
+
+        Gamepad gamepad = Gamepad.current;
+        return gamepad != null && gamepad.leftShoulder.isPressed;
+    }
+
+    bool IsFacingSource(Transform source)
+    {
+        if (source == null)
+            return false;
+        int toward = source.position.x >= transform.position.x ? 1 : -1;
+        return toward == _facing;
+    }
+
+    void UpdateBlock()
+    {
+        bool wantBlock = IsBlockHeld() && _grounded && !_rolling && !_wallSliding && _hurtLock <= 0f;
+        if (wantBlock)
+        {
+            if (!_blocking)
+                StartBlock();
+            return;
+        }
+
+        if (_blocking)
+            StopBlock();
+    }
+
+    void StartBlock()
+    {
+        _blocking = true;
+        _jumpBuffer = 0f;
+        if (_attack != null)
+            _attack.Cancel();
+        _animator.SetInteger(AnimStateHash, 0);
+        _animator.SetBool(IdleBlockHash, true);
+        _animator.Play("Idle Block", 0, 0f);
+    }
+
+    void StopBlock()
+    {
+        if (!_blocking)
+            return;
+
+        _blocking = false;
+        _animator.SetBool(IdleBlockHash, false);
+        if (_hurtLock <= 0f && !_rolling && _grounded)
+            _animator.Play("Idle", 0, 0f);
+    }
+
     void TryStartAttack()
     {
         if (_attack == null)
             _attack = GetComponent<PlayerAttack>();
         if (_attack == null)
             return;
-        if (_rolling || _wallSliding || _hurtLock > 0f)
+        if (_rolling || _wallSliding || _hurtLock > 0f || _blocking)
             return;
 
         if (WasLightAttackPressed())
@@ -385,7 +469,7 @@ public class PlayerMovement : MonoBehaviour
     {
         if (!WasRollPressed())
             return;
-        if (_rolling || _rollCooldown > 0f || _hurtLock > 0f)
+        if (_rolling || _rollCooldown > 0f || _hurtLock > 0f || _blocking)
             return;
         if (_attack != null && _attack.IsAttacking)
             return;
@@ -421,6 +505,12 @@ public class PlayerMovement : MonoBehaviour
         }
 
         if (_hurtLock > 0f)
+        {
+            velocity.x = Mathf.MoveTowards(velocity.x, 0f, groundDecel * Time.fixedDeltaTime);
+            return;
+        }
+
+        if (_blocking)
         {
             velocity.x = Mathf.MoveTowards(velocity.x, 0f, groundDecel * Time.fixedDeltaTime);
             return;
@@ -487,6 +577,11 @@ public class PlayerMovement : MonoBehaviour
             return;
         if (_hurtLock > 0f)
             return;
+        if (_blocking)
+        {
+            _jumpBuffer = 0f;
+            return;
+        }
         if (_attack != null && _attack.IsAttacking)
             return;
         if (IsCrouching() && !CanStand())
@@ -656,8 +751,7 @@ public class PlayerMovement : MonoBehaviour
         Vector2 worldCenter = (Vector2)transform.position + new Vector2(_standOffset.x, crouchTop + headHeight * 0.5f);
         Vector2 headSize = new Vector2(_standSize.x * 0.9f, headHeight);
 
-        ContactFilter2D filter = new ContactFilter2D();
-        filter.NoFilter();
+        ContactFilter2D filter = ContactFilter2D.noFilter;
         filter.useTriggers = false;
 
         int count = Physics2D.OverlapBox(worldCenter, headSize, 0f, filter, _overlapHits);
@@ -699,6 +793,8 @@ public class PlayerMovement : MonoBehaviour
         if (_rolling || _wallSliding || !_grounded)
             return;
         if (_hurtLock > 0f)
+            return;
+        if (_blocking)
             return;
         if (_attack != null && _attack.IsAttacking)
             return;

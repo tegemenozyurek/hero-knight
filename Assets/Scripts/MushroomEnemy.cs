@@ -530,8 +530,7 @@ public class MushroomEnemy : MonoBehaviour
 
     bool HasSolid(Vector2 origin, Vector2 direction, float distance)
     {
-        ContactFilter2D filter = new ContactFilter2D();
-        filter.NoFilter();
+        ContactFilter2D filter = ContactFilter2D.noFilter;
         filter.useTriggers = false;
 
         int count = Physics2D.Raycast(origin, direction, filter, Hits, distance);

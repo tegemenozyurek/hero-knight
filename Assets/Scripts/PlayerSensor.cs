@@ -72,8 +72,7 @@ public class PlayerSensor : MonoBehaviour
             Mathf.Abs(transform.lossyScale.y));
         float radius = Mathf.Max(0.02f, _collider.radius * scale);
 
-        ContactFilter2D filter = new ContactFilter2D();
-        filter.NoFilter();
+        ContactFilter2D filter = ContactFilter2D.noFilter;
         filter.useTriggers = false;
 
         int count = Physics2D.OverlapCircle(transform.position, radius, filter, _hits);

@@ -134,8 +134,7 @@ public class PlayerAttack : MonoBehaviour
         int facing = _movement != null ? _movement.Facing : 1;
         Vector2 origin = (Vector2)transform.position + new Vector2(facing * hitboxForward, hitboxHeight);
 
-        ContactFilter2D filter = new ContactFilter2D();
-        filter.NoFilter();
+        ContactFilter2D filter = ContactFilter2D.noFilter;
         filter.useTriggers = false;
 
         int count = Physics2D.OverlapBox(origin, hitboxSize, 0f, filter, _hits);
