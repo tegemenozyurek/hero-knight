@@ -205,8 +205,8 @@ MonoBehaviour:
   moveSpeed: 1.45
   wallCheckDistance: 0.12
   edgeCheckDistance: 0.28
-  idleMin: 0.7
-  idleMax: 1.5
+  idleMin: 1.05
+  idleMax: 1.85
   spriteFacesRight: 1
   maxHealth: 3
   hurtTime: 0.42

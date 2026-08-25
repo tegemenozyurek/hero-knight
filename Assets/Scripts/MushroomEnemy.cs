@@ -10,8 +10,8 @@ public class MushroomEnemy : MonoBehaviour
     [SerializeField] float moveSpeed = 1.45f;
     [SerializeField] float wallCheckDistance = 0.12f;
     [SerializeField] float edgeCheckDistance = 0.28f;
-    [SerializeField] float idleMin = 0.7f;
-    [SerializeField] float idleMax = 1.5f;
+    [SerializeField] float idleMin = 1.05f;
+    [SerializeField] float idleMax = 1.85f;
     [SerializeField] bool spriteFacesRight = true;
     [SerializeField] int maxHealth = 3;
     [SerializeField] float hurtTime = 0.42f;
@@ -44,9 +44,21 @@ public class MushroomEnemy : MonoBehaviour
         _minX = minX;
         _maxX = maxX;
         _usePatrol = maxX > minX + 0.5f;
-        _dir = dir >= 0 ? 1 : -1;
-        _idleTime = Random.Range(0.25f, 0.9f);
         _pendingTurn = false;
+        _idleTime = 0f;
+        moveSpeed *= Random.Range(0.9f, 1.14f);
+
+        if (_usePatrol)
+        {
+            float x = transform.position.x;
+            float toMin = x - _minX;
+            float toMax = _maxX - x;
+            _dir = toMax >= toMin ? 1 : -1;
+        }
+        else
+        {
+            _dir = dir >= 0 ? 1 : -1;
+        }
     }
 
     public void TakeHit(Transform attacker, float knockback)
@@ -96,6 +108,26 @@ public class MushroomEnemy : MonoBehaviour
         };
         _body.sharedMaterial = material;
         _collider.sharedMaterial = material;
+    }
+
+    void Start()
+    {
+        IgnoreOtherMushrooms();
+    }
+
+    void IgnoreOtherMushrooms()
+    {
+        if (_collider == null)
+            return;
+
+        MushroomEnemy[] others = FindObjectsByType<MushroomEnemy>(FindObjectsSortMode.None);
+        for (int i = 0; i < others.Length; i++)
+        {
+            MushroomEnemy other = others[i];
+            if (other == null || other == this || other._collider == null)
+                continue;
+            Physics2D.IgnoreCollision(_collider, other._collider, true);
+        }
     }
 
     void Update()
@@ -161,7 +193,7 @@ public class MushroomEnemy : MonoBehaviour
             return;
         }
 
-        if (ReachedBound() || ShouldTurn())
+        if (ShouldEndWalk())
         {
             velocity.x = 0f;
             _body.linearVelocity = velocity;
@@ -238,6 +270,13 @@ public class MushroomEnemy : MonoBehaviour
                 continue;
             Physics2D.IgnoreCollision(_collider, cols[i], ignore);
         }
+    }
+
+    bool ShouldEndWalk()
+    {
+        if (_usePatrol)
+            return ReachedBound();
+        return ShouldTurn();
     }
 
     bool ReachedBound()

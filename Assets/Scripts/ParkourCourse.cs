@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public class ParkourCourse : MonoBehaviour
@@ -62,13 +63,10 @@ public class ParkourCourse : MonoBehaviour
     }
 
     static readonly Color Ground = new Color(0.28f, 0.32f, 0.36f);
-    static readonly Color Stone = new Color(0.72f, 0.75f, 0.80f);
     static readonly Color Accent = new Color(0.55f, 0.62f, 0.48f);
     static readonly Color Slide = new Color(0.48f, 0.34f, 0.30f);
-    static readonly Color Climb = new Color(0.30f, 0.38f, 0.52f);
     static readonly Color Gold = new Color(0.93f, 0.76f, 0.22f);
 
-    // Mostly flat combat road. Jump ~2.5 high / ~3.0 across.
     static readonly Checkpoint[] Checkpoints =
     {
         new Checkpoint(9f, -1f, 9.4f, 0.05f),
@@ -77,25 +75,56 @@ public class ParkourCourse : MonoBehaviour
         new Checkpoint(68f, -1f, 68.4f, 0.05f)
     };
 
-    static readonly MushroomSpot[] MushroomSpawns =
+    static readonly MushroomSpot[] MushroomSpawns = CreateMushroomSpawns();
+
+    static MushroomSpot[] CreateMushroomSpawns()
     {
-        new MushroomSpot(-2.2f, 1.3f, -6.4f, 0.4f, 1),
-        new MushroomSpot(5.8f, 1.3f, 1.8f, 8.8f, -1),
+        List<MushroomSpot> spots = new List<MushroomSpot>(40);
+        AddLane(spots, -8f, 10f, 7);
+        AddLane(spots, 12f, 28f, 7);
+        AddLane(spots, 30.2f, 50f, 8);
+        AddLane(spots, 51.8f, 70f, 8);
+        AddLane(spots, 71f, 84.2f, 6);
+        return spots.ToArray();
+    }
 
-        new MushroomSpot(15.2f, 1.3f, 12.8f, 18.4f, 1),
-        new MushroomSpot(23.6f, 1.3f, 19.6f, 26.6f, -1),
+    static void AddLane(List<MushroomSpot> spots, float left, float right, int count)
+    {
+        const float y = 1.3f;
+        const float inset = 1.2f;
+        float minX = left + inset;
+        float maxX = right - inset;
+        float mid = (minX + maxX) * 0.5f;
 
-        new MushroomSpot(33.4f, 1.3f, 31.0f, 36.4f, 1),
-        new MushroomSpot(40.2f, 1.3f, 37.2f, 43.2f, -1),
-        new MushroomSpot(46.8f, 1.3f, 44.0f, 48.6f, 1),
+        for (int i = 0; i < count; i++)
+        {
+            float t = (i + 0.5f) / count;
+            float x = Mathf.Lerp(minX, maxX, t);
+            int dir = (i % 2 == 0) ? 1 : -1;
 
-        new MushroomSpot(54.6f, 1.3f, 52.6f, 57.4f, -1),
-        new MushroomSpot(61.2f, 1.3f, 58.4f, 63.8f, 1),
-        new MushroomSpot(67.2f, 1.3f, 64.6f, 68.8f, -1),
+            float patrolMin;
+            float patrolMax;
+            int kind = i % 3;
+            if (kind == 0)
+            {
+                patrolMin = minX;
+                patrolMax = maxX;
+            }
+            else if (kind == 1)
+            {
+                patrolMin = minX;
+                patrolMax = mid + 1.2f;
+            }
+            else
+            {
+                patrolMin = mid - 1.2f;
+                patrolMax = maxX;
+            }
 
-        new MushroomSpot(74.2f, 1.3f, 72.2f, 76.6f, 1),
-        new MushroomSpot(80.0f, 1.3f, 77.4f, 82.6f, -1)
-    };
+            x = Mathf.Clamp(x, patrolMin + 0.2f, patrolMax - 0.2f);
+            spots.Add(new MushroomSpot(x, y, patrolMin, patrolMax, dir));
+        }
+    }
 
     void Awake()
     {
@@ -156,15 +185,10 @@ public class ParkourCourse : MonoBehaviour
         {
             new Block("StartWall", -16.4f, 2.6f, 1.4f, 7.2f, Slide),
             new Block("StartFloor", -12f, -0.5f, 8f, 1f, Ground),
-
             new Block("A1_Floor", 1f, -0.5f, 18f, 1f, Ground),
-
             new Block("A2_Floor", 20f, -0.5f, 16f, 1f, Accent),
-
             new Block("A3_Floor", 40.1f, -0.5f, 19.8f, 1f, Ground),
-
             new Block("A4_Floor", 60.9f, -0.5f, 18.2f, 1f, Accent),
-
             new Block("Finish", 77.6f, -0.4f, 13.2f, 1.2f, Gold),
             new Block("FinishBack", 84.6f, 2.6f, 1.2f, 5.2f, Slide)
         };

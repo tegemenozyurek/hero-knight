@@ -368,6 +368,7 @@ public class PlayerMovement : MonoBehaviour
         _rollCooldown = rollDuration + rollCooldown;
         _jumpBuffer = 0f;
         SetCrouching(true);
+        SetPassThroughMushrooms(true);
         _animator.ResetTrigger(JumpHash);
         _animator.SetTrigger(RollHash);
     }
@@ -380,7 +381,10 @@ public class PlayerMovement : MonoBehaviour
             float t = rollDuration <= 0f ? 0f : Mathf.Clamp01(_rollTime / rollDuration);
             velocity.x = _rollDir * Mathf.Lerp(rollEndSpeed, rollSpeed, t);
             if (_rollTime <= 0f)
+            {
                 _rolling = false;
+                SetPassThroughMushrooms(false);
+            }
             return;
         }
 
@@ -554,6 +558,23 @@ public class PlayerMovement : MonoBehaviour
 
         _facing = _inputX > 0f ? 1 : -1;
         _sprite.flipX = _facing < 0;
+    }
+
+    void SetPassThroughMushrooms(bool pass)
+    {
+        if (_box == null)
+            return;
+
+        MushroomEnemy[] mushrooms = FindObjectsByType<MushroomEnemy>(FindObjectsSortMode.None);
+        for (int i = 0; i < mushrooms.Length; i++)
+        {
+            if (mushrooms[i] == null)
+                continue;
+            Collider2D hit = mushrooms[i].GetComponent<Collider2D>();
+            if (hit == null || !hit.enabled)
+                continue;
+            Physics2D.IgnoreCollision(_box, hit, pass);
+        }
     }
 
     void SetCrouching(bool crouch)
