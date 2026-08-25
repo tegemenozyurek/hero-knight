@@ -47,6 +47,13 @@ public class PlayerMovement : MonoBehaviour
     [Header("FX")]
     [SerializeField] GameObject slideDust;
 
+    public bool IsGrounded => _grounded;
+    public bool IsRolling => _rolling;
+    public bool IsWallSliding => _wallSliding;
+    public int Facing => _facing;
+    public bool IsBusy => _rolling || (_attack != null && _attack.IsAttacking);
+    public bool CanStartAttack => !_rolling && !_wallSliding && (_grounded || _coyote > 0f);
+
     Rigidbody2D _body;
     Animator _animator;
     SpriteRenderer _sprite;
@@ -54,6 +61,8 @@ public class PlayerMovement : MonoBehaviour
     InputAction _moveAction;
     InputAction _jumpAction;
     InputAction _rollAction;
+    InputAction _lightAttackAction;
+    InputAction _heavyAttackAction;
 
     Vector2 _standSize;
     Vector2 _standOffset;
@@ -74,6 +83,7 @@ public class PlayerMovement : MonoBehaviour
     bool _wallSliding;
     bool _rolling;
     float _idleDelay;
+    PlayerAttack _attack;
 
     static readonly int AnimStateHash = Animator.StringToHash("AnimState");
     static readonly int GroundedHash = Animator.StringToHash("Grounded");
@@ -112,6 +122,7 @@ public class PlayerMovement : MonoBehaviour
 
         BindSensors();
         BuildInput();
+        _attack = GetComponent<PlayerAttack>();
     }
 
     void OnEnable()
@@ -119,6 +130,8 @@ public class PlayerMovement : MonoBehaviour
         _moveAction?.Enable();
         _jumpAction?.Enable();
         _rollAction?.Enable();
+        _lightAttackAction?.Enable();
+        _heavyAttackAction?.Enable();
     }
 
     void OnDisable()
@@ -126,6 +139,8 @@ public class PlayerMovement : MonoBehaviour
         _moveAction?.Disable();
         _jumpAction?.Disable();
         _rollAction?.Disable();
+        _lightAttackAction?.Disable();
+        _heavyAttackAction?.Disable();
     }
 
     void OnDestroy()
@@ -133,6 +148,8 @@ public class PlayerMovement : MonoBehaviour
         _moveAction?.Dispose();
         _jumpAction?.Dispose();
         _rollAction?.Dispose();
+        _lightAttackAction?.Dispose();
+        _heavyAttackAction?.Dispose();
     }
 
     void Update()
@@ -141,6 +158,7 @@ public class PlayerMovement : MonoBehaviour
         UpdateGrounded();
         UpdateWallSlide();
         TryStartRoll();
+        TryStartAttack();
         UpdateFacing();
         UpdateAnimator();
     }
@@ -203,6 +221,18 @@ public class PlayerMovement : MonoBehaviour
         _rollAction.AddBinding("<Keyboard>/leftShift");
         _rollAction.AddBinding("<Keyboard>/rightShift");
         _rollAction.AddBinding("<Gamepad>/buttonEast");
+
+        _lightAttackAction = new InputAction("LightAttack", InputActionType.Button);
+        _lightAttackAction.AddBinding("<Keyboard>/k");
+        _lightAttackAction.AddBinding("<Keyboard>/j");
+        _lightAttackAction.AddBinding("<Keyboard>/f");
+        _lightAttackAction.AddBinding("<Mouse>/leftButton");
+        _lightAttackAction.AddBinding("<Gamepad>/buttonWest");
+
+        _heavyAttackAction = new InputAction("HeavyAttack", InputActionType.Button);
+        _heavyAttackAction.AddBinding("<Keyboard>/l");
+        _heavyAttackAction.AddBinding("<Mouse>/rightButton");
+        _heavyAttackAction.AddBinding("<Gamepad>/buttonNorth");
     }
 
     void ReadInput()
@@ -271,11 +301,62 @@ public class PlayerMovement : MonoBehaviour
         return gamepad != null && gamepad.buttonEast.wasPressedThisFrame;
     }
 
+    bool WasLightAttackPressed()
+    {
+        if (_lightAttackAction != null && _lightAttackAction.WasPressedThisFrame())
+            return true;
+
+        Keyboard keyboard = Keyboard.current;
+        if (keyboard != null && (keyboard.kKey.wasPressedThisFrame || keyboard.jKey.wasPressedThisFrame || keyboard.fKey.wasPressedThisFrame))
+            return true;
+
+        Mouse mouse = Mouse.current;
+        if (mouse != null && mouse.leftButton.wasPressedThisFrame)
+            return true;
+
+        Gamepad gamepad = Gamepad.current;
+        return gamepad != null && gamepad.buttonWest.wasPressedThisFrame;
+    }
+
+    bool WasHeavyAttackPressed()
+    {
+        if (_heavyAttackAction != null && _heavyAttackAction.WasPressedThisFrame())
+            return true;
+
+        Keyboard keyboard = Keyboard.current;
+        if (keyboard != null && keyboard.lKey.wasPressedThisFrame)
+            return true;
+
+        Mouse mouse = Mouse.current;
+        if (mouse != null && mouse.rightButton.wasPressedThisFrame)
+            return true;
+
+        Gamepad gamepad = Gamepad.current;
+        return gamepad != null && gamepad.buttonNorth.wasPressedThisFrame;
+    }
+
+    void TryStartAttack()
+    {
+        if (_attack == null)
+            _attack = GetComponent<PlayerAttack>();
+        if (_attack == null)
+            return;
+        if (_rolling || _wallSliding)
+            return;
+
+        if (WasLightAttackPressed())
+            _attack.TryLight();
+        else if (WasHeavyAttackPressed())
+            _attack.TryHeavy();
+    }
+
     void TryStartRoll()
     {
         if (!WasRollPressed())
             return;
         if (_rolling || _rollCooldown > 0f)
+            return;
+        if (_attack != null && _attack.IsAttacking)
             return;
         if (!_grounded || _wallSliding)
             return;
@@ -301,6 +382,12 @@ public class PlayerMovement : MonoBehaviour
             velocity.x = _rollDir * Mathf.Lerp(rollEndSpeed, rollSpeed, t);
             if (_rollTime <= 0f)
                 _rolling = false;
+            return;
+        }
+
+        if (_attack != null && _attack.IsAttacking)
+        {
+            velocity.x = Mathf.MoveTowards(velocity.x, 0f, groundDecel * 0.7f * Time.fixedDeltaTime);
             return;
         }
 
@@ -356,6 +443,8 @@ public class PlayerMovement : MonoBehaviour
         if (_jumpBuffer <= 0f)
             return;
         if (_rolling)
+            return;
+        if (_attack != null && _attack.IsAttacking)
             return;
         if (IsCrouching() && !CanStand())
             return;
@@ -451,6 +540,8 @@ public class PlayerMovement : MonoBehaviour
     {
         if (_rolling)
             return;
+        if (_attack != null && _attack.IsAttacking)
+            return;
 
         if (_wallSliding)
         {
@@ -544,6 +635,8 @@ public class PlayerMovement : MonoBehaviour
         _animator.SetFloat(AirSpeedYHash, _body.linearVelocity.y);
 
         if (_rolling || _wallSliding || !_grounded)
+            return;
+        if (_attack != null && _attack.IsAttacking)
             return;
 
         if (Mathf.Abs(_inputX) > 0.01f)
