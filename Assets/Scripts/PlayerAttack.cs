@@ -15,13 +15,26 @@ public class PlayerAttack : MonoBehaviour
     [SerializeField] float heavyLockTime = 0.58f;
     [SerializeField] float heavyLunge = 3.6f;
 
+    [Header("Hitbox")]
+    [SerializeField] Vector2 hitboxSize = new Vector2(1.4f, 1.15f);
+    [SerializeField] float hitboxForward = 1.05f;
+    [SerializeField] float hitboxHeight = 0.72f;
+    [SerializeField] float lightHitDelay = 0.08f;
+    [SerializeField] float heavyHitDelay = 0.12f;
+    [SerializeField] float lightKnockback = 0.25f;
+    [SerializeField] float heavyKnockback = 1.35f;
+
     Animator _animator;
     Rigidbody2D _body;
     PlayerMovement _movement;
+    readonly Collider2D[] _hits = new Collider2D[12];
 
     int _comboStep;
     float _comboTimer;
     float _attackLock;
+    float _strikeDelay;
+    float _pendingKnockback;
+    bool _pendingStrike;
 
     public bool IsAttacking => _attackLock > 0f;
 
@@ -43,6 +56,16 @@ public class PlayerAttack : MonoBehaviour
             if (_comboTimer <= 0f)
                 _comboStep = 0;
         }
+
+        if (!_pendingStrike)
+            return;
+
+        _strikeDelay -= Time.deltaTime;
+        if (_strikeDelay > 0f)
+            return;
+
+        _pendingStrike = false;
+        Strike();
     }
 
     public void TryLight()
@@ -53,12 +76,12 @@ public class PlayerAttack : MonoBehaviour
         int step = _comboTimer <= 0f ? 0 : _comboStep;
         if (step <= 1)
         {
-            PlayAttack("Attack1", lightLockTime, lightLunge);
+            PlayAttack("Attack1", lightLockTime, lightLunge, lightHitDelay, lightKnockback);
             _comboStep = step + 1;
         }
         else
         {
-            PlayAttack("Attack2", finisherLockTime, lightLunge * 1.15f);
+            PlayAttack("Attack2", finisherLockTime, lightLunge * 1.15f, lightHitDelay, lightKnockback);
             _comboStep = 0;
         }
 
@@ -72,12 +95,15 @@ public class PlayerAttack : MonoBehaviour
 
         _comboStep = 0;
         _comboTimer = 0f;
-        PlayAttack("Attack3", heavyLockTime, heavyLunge);
+        PlayAttack("Attack3", heavyLockTime, heavyLunge, heavyHitDelay, heavyKnockback);
     }
 
-    void PlayAttack(string stateName, float lockTime, float lunge)
+    void PlayAttack(string stateName, float lockTime, float lunge, float hitDelay, float knockback)
     {
         _attackLock = lockTime;
+        _pendingStrike = true;
+        _strikeDelay = hitDelay;
+        _pendingKnockback = knockback;
 
         if (_animator != null)
         {
@@ -93,5 +119,39 @@ public class PlayerAttack : MonoBehaviour
         Vector2 velocity = _body.linearVelocity;
         velocity.x = facing * lunge;
         _body.linearVelocity = velocity;
+    }
+
+    void Strike()
+    {
+        int facing = _movement != null ? _movement.Facing : 1;
+        Vector2 origin = (Vector2)transform.position + new Vector2(facing * hitboxForward, hitboxHeight);
+
+        ContactFilter2D filter = new ContactFilter2D();
+        filter.NoFilter();
+        filter.useTriggers = false;
+
+        int count = Physics2D.OverlapBox(origin, hitboxSize, 0f, filter, _hits);
+        for (int i = 0; i < count; i++)
+        {
+            Collider2D hit = _hits[i];
+            if (hit == null || hit.gameObject == gameObject)
+                continue;
+
+            MushroomEnemy enemy = hit.GetComponent<MushroomEnemy>();
+            if (enemy == null)
+                enemy = hit.GetComponentInParent<MushroomEnemy>();
+            if (enemy == null)
+                continue;
+
+            enemy.TakeHit(transform, _pendingKnockback);
+        }
+    }
+
+    void OnDrawGizmosSelected()
+    {
+        int facing = _movement != null ? _movement.Facing : 1;
+        Vector2 origin = (Vector2)transform.position + new Vector2(facing * hitboxForward, hitboxHeight);
+        Gizmos.color = new Color(1f, 0.35f, 0.15f, 0.35f);
+        Gizmos.DrawWireCube(origin, hitboxSize);
     }
 }

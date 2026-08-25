@@ -224,7 +224,6 @@ public class PlayerMovement : MonoBehaviour
 
         _lightAttackAction = new InputAction("LightAttack", InputActionType.Button);
         _lightAttackAction.AddBinding("<Keyboard>/k");
-        _lightAttackAction.AddBinding("<Keyboard>/j");
         _lightAttackAction.AddBinding("<Keyboard>/f");
         _lightAttackAction.AddBinding("<Mouse>/leftButton");
         _lightAttackAction.AddBinding("<Gamepad>/buttonWest");
@@ -307,7 +306,7 @@ public class PlayerMovement : MonoBehaviour
             return true;
 
         Keyboard keyboard = Keyboard.current;
-        if (keyboard != null && (keyboard.kKey.wasPressedThisFrame || keyboard.jKey.wasPressedThisFrame || keyboard.fKey.wasPressedThisFrame))
+        if (keyboard != null && (keyboard.kKey.wasPressedThisFrame || keyboard.fKey.wasPressedThisFrame))
             return true;
 
         Mouse mouse = Mouse.current;

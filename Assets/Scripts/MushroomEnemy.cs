@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 
 [RequireComponent(typeof(Rigidbody2D))]
@@ -12,19 +13,30 @@ public class MushroomEnemy : MonoBehaviour
     [SerializeField] float idleMin = 0.7f;
     [SerializeField] float idleMax = 1.5f;
     [SerializeField] bool spriteFacesRight = true;
+    [SerializeField] int maxHealth = 3;
+    [SerializeField] float hurtTime = 0.42f;
+    [SerializeField] float hurtHop = 0f;
+    [SerializeField] float deathHoldTime = 5f;
+    [SerializeField] float deathFadeTime = 1.1f;
 
     Rigidbody2D _body;
     Animator _animator;
     SpriteRenderer _sprite;
     Collider2D _collider;
     int _dir = -1;
+    int _health;
     float _idleTime;
+    float _hurtLock;
     bool _pendingTurn;
+    bool _dead;
+    bool _dying;
     bool _usePatrol;
     float _minX;
     float _maxX;
 
     static readonly int AnimStateHash = Animator.StringToHash("AnimState");
+    static readonly int HurtHash = Animator.StringToHash("Hurt");
+    static readonly int DeathHash = Animator.StringToHash("Death");
     static readonly RaycastHit2D[] Hits = new RaycastHit2D[8];
 
     public void ConfigurePatrol(float minX, float maxX, int dir)
@@ -37,12 +49,39 @@ public class MushroomEnemy : MonoBehaviour
         _pendingTurn = false;
     }
 
+    public void TakeHit(Transform attacker, float knockback)
+    {
+        if (_dead || _dying || _hurtLock > 0f)
+            return;
+
+        _health -= 1;
+        int sign = transform.position.x >= attacker.position.x ? 1 : -1;
+        Vector2 velocity = _body.linearVelocity;
+        velocity.x = sign * knockback;
+        if (velocity.y > 0f)
+            velocity.y = 0f;
+        velocity.y += hurtHop;
+        _body.linearVelocity = velocity;
+        _idleTime = 0f;
+        _pendingTurn = false;
+        _dir = -sign;
+        IgnoreAttacker(attacker, true);
+
+        _hurtLock = hurtTime;
+        _animator.Play("MushroomTakeHit", 0, 0f);
+        _animator.SetTrigger(HurtHash);
+
+        if (_health <= 0)
+            _dying = true;
+    }
+
     void Awake()
     {
         _body = GetComponent<Rigidbody2D>();
         _animator = GetComponent<Animator>();
         _sprite = GetComponent<SpriteRenderer>();
         _collider = GetComponent<Collider2D>();
+        _health = maxHealth;
 
         _body.freezeRotation = true;
         _body.gravityScale = 3.5f;
@@ -61,6 +100,25 @@ public class MushroomEnemy : MonoBehaviour
 
     void Update()
     {
+        if (_dead)
+            return;
+
+        if (_hurtLock > 0f)
+        {
+            _hurtLock -= Time.deltaTime;
+            if (_hurtLock <= 0f)
+            {
+                IgnoreAttacker(null, false);
+                if (_dying)
+                {
+                    Die();
+                    return;
+                }
+            }
+            UpdateFacing();
+            return;
+        }
+
         if (_idleTime > 0f)
         {
             _idleTime -= Time.deltaTime;
@@ -73,16 +131,28 @@ public class MushroomEnemy : MonoBehaviour
 
         bool walking = _idleTime <= 0f;
         _animator.SetInteger(AnimStateHash, walking ? 1 : 0);
-
-        bool movingLeft = _dir < 0;
-        if (walking && Mathf.Abs(_body.linearVelocity.x) > 0.05f)
-            movingLeft = _body.linearVelocity.x < 0f;
-        _sprite.flipX = spriteFacesRight ? movingLeft : !movingLeft;
+        UpdateFacing();
     }
 
     void FixedUpdate()
     {
         Vector2 velocity = _body.linearVelocity;
+
+        if (_dead)
+        {
+            velocity.x = 0f;
+            _body.linearVelocity = velocity;
+            return;
+        }
+
+        if (_hurtLock > 0f || _dying)
+        {
+            velocity.x = Mathf.MoveTowards(velocity.x, 0f, 28f * Time.fixedDeltaTime);
+            if (velocity.y > 0f)
+                velocity.y = Mathf.MoveTowards(velocity.y, 0f, 18f * Time.fixedDeltaTime);
+            _body.linearVelocity = velocity;
+            return;
+        }
 
         if (_idleTime > 0f)
         {
@@ -102,6 +172,72 @@ public class MushroomEnemy : MonoBehaviour
 
         velocity.x = _dir * moveSpeed;
         _body.linearVelocity = velocity;
+    }
+
+    void UpdateFacing()
+    {
+        bool movingLeft = _dir < 0;
+        if (_hurtLock <= 0f && _idleTime <= 0f && Mathf.Abs(_body.linearVelocity.x) > 0.05f)
+            movingLeft = _body.linearVelocity.x < 0f;
+        _sprite.flipX = spriteFacesRight ? movingLeft : !movingLeft;
+    }
+
+    void Die()
+    {
+        _dead = true;
+        _hurtLock = 0f;
+        _animator.Play("Death", 0, 0f);
+        _animator.SetTrigger(DeathHash);
+        _body.linearVelocity = Vector2.zero;
+        _body.gravityScale = 0f;
+        _body.bodyType = RigidbodyType2D.Kinematic;
+        if (_collider != null)
+            _collider.enabled = false;
+        IgnoreAttacker(null, false);
+        StartCoroutine(DeathFade());
+    }
+
+    IEnumerator DeathFade()
+    {
+        yield return new WaitForSeconds(deathHoldTime);
+
+        Color color = _sprite.color;
+        float fade = Mathf.Max(0.15f, deathFadeTime);
+        float elapsed = 0f;
+        while (elapsed < fade)
+        {
+            elapsed += Time.deltaTime;
+            color.a = Mathf.Lerp(1f, 0f, elapsed / fade);
+            _sprite.color = color;
+            yield return null;
+        }
+
+        color.a = 0f;
+        _sprite.color = color;
+        Destroy(gameObject);
+    }
+
+    void IgnoreAttacker(Transform attacker, bool ignore)
+    {
+        if (_collider == null)
+            return;
+
+        Transform root = attacker;
+        if (root == null)
+        {
+            GameObject player = GameObject.Find("Player");
+            if (player == null)
+                return;
+            root = player.transform;
+        }
+
+        Collider2D[] cols = root.GetComponentsInChildren<Collider2D>();
+        for (int i = 0; i < cols.Length; i++)
+        {
+            if (cols[i] == null || cols[i].isTrigger)
+                continue;
+            Physics2D.IgnoreCollision(_collider, cols[i], ignore);
+        }
     }
 
     bool ReachedBound()
@@ -138,6 +274,10 @@ public class MushroomEnemy : MonoBehaviour
             if (hit == null || hit == _collider)
                 continue;
             if (hit.attachedRigidbody == _body)
+                continue;
+            if (hit.GetComponent<MushroomEnemy>() != null)
+                continue;
+            if (hit.GetComponentInParent<PlayerMovement>() != null)
                 continue;
             return true;
         }

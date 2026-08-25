@@ -208,3 +208,8 @@ MonoBehaviour:
   idleMin: 0.7
   idleMax: 1.5
   spriteFacesRight: 1
+  maxHealth: 3
+  hurtTime: 0.42
+  hurtHop: 0
+  deathHoldTime: 5
+  deathFadeTime: 1.1

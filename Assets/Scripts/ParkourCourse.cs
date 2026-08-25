@@ -68,22 +68,33 @@ public class ParkourCourse : MonoBehaviour
     static readonly Color Climb = new Color(0.30f, 0.38f, 0.52f);
     static readonly Color Gold = new Color(0.93f, 0.76f, 0.22f);
 
-    // Jump reach ~2.5 high / ~3.0 across. Wall jump ~1.2 high / ~2.6 across.
+    // Mostly flat combat road. Jump ~2.5 high / ~3.0 across.
     static readonly Checkpoint[] Checkpoints =
     {
-        new Checkpoint(12f, 0.9f, 13.6f, 1.55f),
-        new Checkpoint(30f, -0.1f, 31.2f, 0.7f),
-        new Checkpoint(49f, 7.6f, 50.2f, 8.6f),
-        new Checkpoint(66f, 6.9f, 67.2f, 7.8f)
+        new Checkpoint(9f, -1f, 9.4f, 0.05f),
+        new Checkpoint(26f, -1f, 26.4f, 0.05f),
+        new Checkpoint(48f, -1f, 48.4f, 0.05f),
+        new Checkpoint(68f, -1f, 68.4f, 0.05f)
     };
 
     static readonly MushroomSpot[] MushroomSpawns =
     {
-        new MushroomSpot(0.5f, 1.3f, -4.0f, 4.8f, 1),
-        new MushroomSpot(16.2f, 2.7f, 12.2f, 20.1f, -1),
-        new MushroomSpot(33.4f, 1.75f, 29.2f, 37.4f, 1),
-        new MushroomSpot(52.4f, 9.7f, 48.4f, 56.4f, -1),
-        new MushroomSpot(68.9f, 8.9f, 65.6f, 72.0f, 1)
+        new MushroomSpot(-2.2f, 1.3f, -6.4f, 0.4f, 1),
+        new MushroomSpot(5.8f, 1.3f, 1.8f, 8.8f, -1),
+
+        new MushroomSpot(15.2f, 1.3f, 12.8f, 18.4f, 1),
+        new MushroomSpot(23.6f, 1.3f, 19.6f, 26.6f, -1),
+
+        new MushroomSpot(33.4f, 1.3f, 31.0f, 36.4f, 1),
+        new MushroomSpot(40.2f, 1.3f, 37.2f, 43.2f, -1),
+        new MushroomSpot(46.8f, 1.3f, 44.0f, 48.6f, 1),
+
+        new MushroomSpot(54.6f, 1.3f, 52.6f, 57.4f, -1),
+        new MushroomSpot(61.2f, 1.3f, 58.4f, 63.8f, 1),
+        new MushroomSpot(67.2f, 1.3f, 64.6f, 68.8f, -1),
+
+        new MushroomSpot(74.2f, 1.3f, 72.2f, 76.6f, 1),
+        new MushroomSpot(80.0f, 1.3f, 77.4f, 82.6f, -1)
     };
 
     void Awake()
@@ -143,32 +154,19 @@ public class ParkourCourse : MonoBehaviour
     {
         return new[]
         {
-            new Block("StartFloor", -10.5f, -0.5f, 9f, 1f, Ground),
-            new Block("StartWall", -15.6f, 2.6f, 1.4f, 7.2f, Slide),
+            new Block("StartWall", -16.4f, 2.6f, 1.4f, 7.2f, Slide),
+            new Block("StartFloor", -12f, -0.5f, 8f, 1f, Ground),
 
-            new Block("M1_Floor", 0.5f, -0.5f, 11f, 1f, Ground),
+            new Block("A1_Floor", 1f, -0.5f, 18f, 1f, Ground),
 
-            new Block("A_Step", 9.2f, 0.5f, 2.6f, 0.5f, Stone),
-            new Block("M2_Floor", 16.2f, 1.15f, 10.2f, 0.5f, Accent),
+            new Block("A2_Floor", 20f, -0.5f, 16f, 1f, Accent),
 
-            new Block("B_Ledge", 24.2f, 3.15f, 3.4f, 0.5f, Stone),
-            new Block("B_Wall", 27.5f, 4f, 1.2f, 5.6f, Slide),
-            new Block("M3_Floor", 33.4f, 0.22f, 10.4f, 0.44f, Accent),
+            new Block("A3_Floor", 40.1f, -0.5f, 19.8f, 1f, Ground),
 
-            new Block("C_Entry", 40.2f, 0.22f, 3.2f, 0.44f, Stone),
-            new Block("C_WallL", 42.5f, 4.7f, 1.15f, 9f, Climb),
-            new Block("C_WallR_Low", 46.2f, 1.75f, 1.15f, 3.1f, Climb),
-            new Block("C_Rest", 47.7f, 3.5f, 2f, 0.4f, Accent),
-            new Block("C_WallR_High", 46.2f, 6.05f, 1.15f, 3.9f, Climb),
-            new Block("M4_Floor", 52.4f, 8.15f, 10.4f, 0.5f, Accent),
+            new Block("A4_Floor", 60.9f, -0.5f, 18.2f, 1f, Accent),
 
-            new Block("D_Run", 60.2f, 8.15f, 2.8f, 0.5f, Stone),
-            new Block("M5_Floor", 68.9f, 7.35f, 8.6f, 0.5f, Accent),
-
-            new Block("F_Ledge", 75.4f, 7.35f, 2.6f, 0.5f, Stone),
-            new Block("F_Wall", 78.5f, 4.05f, 1.2f, 7.1f, Slide),
-            new Block("Finish", 83.2f, 0.4f, 7.2f, 0.9f, Gold),
-            new Block("FinishBack", 86.9f, 2.9f, 1.2f, 4.2f, Slide)
+            new Block("Finish", 77.6f, -0.4f, 13.2f, 1.2f, Gold),
+            new Block("FinishBack", 84.6f, 2.6f, 1.2f, 5.2f, Slide)
         };
     }
 
@@ -243,6 +241,6 @@ public class ParkourCourse : MonoBehaviour
         }
 
         Gizmos.color = new Color(0.8f, 0.15f, 0.15f, 0.35f);
-        Gizmos.DrawCube(new Vector3(36f, killY, 0f), new Vector3(110f, 0.2f, 0.2f));
+        Gizmos.DrawCube(new Vector3(34f, killY, 0f), new Vector3(120f, 0.2f, 0.2f));
     }
 }
