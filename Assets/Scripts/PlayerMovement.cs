@@ -6,18 +6,29 @@ using UnityEngine.InputSystem;
 [RequireComponent(typeof(SpriteRenderer))]
 public class PlayerMovement : MonoBehaviour
 {
-    [Header("Move")]
-    [SerializeField] float moveSpeed = 5f;
-    [SerializeField] float jumpForce = 8f;
-    [SerializeField] float coyoteTime = 0.1f;
-    [SerializeField] float jumpBufferTime = 0.1f;
+    [Header("Walk")]
+    [SerializeField] float walkSpeed = 4.4f;
+    [SerializeField] float groundAccel = 36f;
+    [SerializeField] float groundDecel = 54f;
+    [SerializeField] float turnDecel = 72f;
+    [SerializeField] float airAccel = 9f;
+    [SerializeField] float airDecel = 6f;
+    [SerializeField] float inputDeadzone = 0.2f;
 
-    [Header("Wall Slide")]
-    [SerializeField] float wallSlideSpeed = 1.6f;
-    [SerializeField] float wallJumpHorizontalForce = 6.5f;
-    [SerializeField] float wallJumpVerticalForce = 8f;
-    [SerializeField] float wallJumpLockTime = 0.18f;
-    [SerializeField] float wallSensorDisableTime = 0.2f;
+    [Header("Jump")]
+    [SerializeField] float jumpSpeed = 13.2f;
+    [SerializeField] float gravityScale = 3.5f;
+    [SerializeField] float fallMultiplier = 1.4f;
+    [SerializeField] float maxFallSpeed = 16f;
+    [SerializeField] float coyoteTime = 0.09f;
+    [SerializeField] float jumpBufferTime = 0.12f;
+
+    [Header("Wall")]
+    [SerializeField] float wallSlideSpeed = 2.4f;
+    [SerializeField] float wallJumpSpeedX = 5.6f;
+    [SerializeField] float wallJumpSpeedY = 9.2f;
+    [SerializeField] float wallJumpLockTime = 0.1f;
+    [SerializeField] float wallSensorDisableTime = 0.1f;
 
     [Header("Sensors")]
     [SerializeField] PlayerSensor groundSensor;
@@ -32,18 +43,20 @@ public class PlayerMovement : MonoBehaviour
     Rigidbody2D _body;
     Animator _animator;
     SpriteRenderer _sprite;
+    Collider2D _collider;
     InputAction _moveAction;
     InputAction _jumpAction;
 
-    bool _grounded;
-    bool _wallSliding;
+    float _inputX;
+    float _jumpBuffer;
+    float _coyote;
+    float _wallCoyote;
+    float _wallJumpLock;
     int _facing = 1;
     int _wallDir;
     int _lastWallDir;
-    float _coyoteCounter;
-    float _jumpBufferCounter;
-    float _wallCoyoteCounter;
-    float _wallJumpLockCounter;
+    bool _grounded;
+    bool _wallSliding;
     float _idleDelay;
 
     static readonly int AnimStateHash = Animator.StringToHash("AnimState");
@@ -57,46 +70,64 @@ public class PlayerMovement : MonoBehaviour
         _body = GetComponent<Rigidbody2D>();
         _animator = GetComponent<Animator>();
         _sprite = GetComponent<SpriteRenderer>();
+        _collider = GetComponent<Collider2D>();
 
         _body.freezeRotation = true;
+        _body.gravityScale = gravityScale;
         _body.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
         _body.interpolation = RigidbodyInterpolation2D.Interpolate;
+        _body.linearDamping = 0f;
+
+        PhysicsMaterial2D material = new PhysicsMaterial2D("PlayerNoFriction")
+        {
+            friction = 0f,
+            bounciness = 0f
+        };
+        _body.sharedMaterial = material;
+        if (_collider != null)
+            _collider.sharedMaterial = material;
 
         BindSensors();
-        BindInput();
+        BuildInput();
+    }
+
+    void OnEnable()
+    {
+        _moveAction?.Enable();
+        _jumpAction?.Enable();
+    }
+
+    void OnDisable()
+    {
+        _moveAction?.Disable();
+        _jumpAction?.Disable();
+    }
+
+    void OnDestroy()
+    {
+        _moveAction?.Dispose();
+        _jumpAction?.Dispose();
     }
 
     void Update()
     {
-        float moveX = ReadMoveX();
-        if (WasJumpPressed())
-            _jumpBufferCounter = jumpBufferTime;
-
-        UpdateWallSlide(moveX);
+        ReadInput();
         UpdateGrounded();
-        Face(moveX);
-        TryJump();
-        UpdateAnimator(moveX);
+        UpdateWallSlide();
+        UpdateFacing();
+        UpdateAnimator();
     }
 
     void FixedUpdate()
     {
-        float moveX = ReadMoveX();
         Vector2 velocity = _body.linearVelocity;
 
-        if (_wallJumpLockCounter > 0f)
-        {
-            _wallJumpLockCounter -= Time.fixedDeltaTime;
-        }
-        else if (_wallSliding)
-        {
-            velocity.x = _wallDir * 0.4f;
-            velocity.y = Mathf.Max(velocity.y, -wallSlideSpeed);
-        }
-        else
-        {
-            velocity.x = moveX * moveSpeed;
-        }
+        if (_wallJumpLock > 0f)
+            _wallJumpLock -= Time.fixedDeltaTime;
+
+        Move(ref velocity);
+        ApplyGravity(ref velocity);
+        TryJump(ref velocity);
 
         _body.linearVelocity = velocity;
     }
@@ -121,42 +152,67 @@ public class PlayerMovement : MonoBehaviour
         return child != null ? child.GetComponent<PlayerSensor>() : null;
     }
 
-    void BindInput()
+    void BuildInput()
     {
-        InputActionAsset actions = InputSystem.actions;
-        if (actions == null)
-            return;
+        _moveAction = new InputAction("Move", InputActionType.Value);
+        _moveAction.AddCompositeBinding("2DVector")
+            .With("Left", "<Keyboard>/a")
+            .With("Right", "<Keyboard>/d")
+            .With("Left", "<Keyboard>/leftArrow")
+            .With("Right", "<Keyboard>/rightArrow")
+            .With("Up", "<Keyboard>/w")
+            .With("Down", "<Keyboard>/s");
+        _moveAction.AddBinding("<Gamepad>/leftStick");
 
-        _moveAction = actions.FindAction("Player/Move") ?? actions.FindAction("Move");
-        _jumpAction = actions.FindAction("Player/Jump") ?? actions.FindAction("Jump");
+        _jumpAction = new InputAction("Jump", InputActionType.Button);
+        _jumpAction.AddBinding("<Keyboard>/space");
+        _jumpAction.AddBinding("<Gamepad>/buttonSouth");
     }
 
-    float ReadMoveX()
+    void ReadInput()
     {
-        if (_moveAction != null)
-            return _moveAction.ReadValue<Vector2>().x;
-
         float x = 0f;
+
+        if (_moveAction != null)
+            x = _moveAction.ReadValue<Vector2>().x;
+
         Keyboard keyboard = Keyboard.current;
         if (keyboard != null)
         {
-            if (keyboard.aKey.isPressed || keyboard.leftArrowKey.isPressed)
-                x -= 1f;
-            if (keyboard.dKey.isPressed || keyboard.rightArrowKey.isPressed)
-                x += 1f;
+            bool left = keyboard.aKey.isPressed || keyboard.leftArrowKey.isPressed;
+            bool right = keyboard.dKey.isPressed || keyboard.rightArrowKey.isPressed;
+            if (left && !right)
+                x = -1f;
+            else if (right && !left)
+                x = 1f;
+            else if (left && right)
+                x = 0f;
         }
 
         Gamepad gamepad = Gamepad.current;
         if (gamepad != null)
-            x += gamepad.leftStick.ReadValue().x;
+        {
+            float stickX = gamepad.leftStick.x.ReadValue();
+            if (Mathf.Abs(stickX) > Mathf.Abs(x))
+                x = stickX;
+            if (gamepad.dpad.left.isPressed)
+                x = -1f;
+            if (gamepad.dpad.right.isPressed)
+                x = 1f;
+        }
 
-        return Mathf.Clamp(x, -1f, 1f);
+        _inputX = Mathf.Abs(x) < inputDeadzone ? 0f : Mathf.Clamp(x, -1f, 1f);
+
+        if (WasJumpPressed())
+            _jumpBuffer = jumpBufferTime;
+        else
+            _jumpBuffer -= Time.deltaTime;
     }
 
     bool WasJumpPressed()
     {
-        if (_jumpAction != null)
-            return _jumpAction.WasPressedThisFrame();
+        if (_jumpAction != null && _jumpAction.WasPressedThisFrame())
+            return true;
 
         Keyboard keyboard = Keyboard.current;
         if (keyboard != null && keyboard.spaceKey.wasPressedThisFrame)
@@ -166,56 +222,148 @@ public class PlayerMovement : MonoBehaviour
         return gamepad != null && gamepad.buttonSouth.wasPressedThisFrame;
     }
 
+    void Move(ref Vector2 velocity)
+    {
+        if (_wallJumpLock > 0f)
+            return;
+
+        if (_wallSliding)
+        {
+            velocity.x = _wallDir * 0.35f;
+            velocity.y = Mathf.Max(velocity.y, -wallSlideSpeed);
+            return;
+        }
+
+        float target = _inputX * walkSpeed;
+        float rate;
+
+        if (_grounded)
+        {
+            bool reversing = Mathf.Abs(_inputX) > 0.01f &&
+                             Mathf.Abs(velocity.x) > 0.25f &&
+                             Mathf.Sign(_inputX) != Mathf.Sign(velocity.x);
+            if (reversing)
+                rate = turnDecel;
+            else if (Mathf.Abs(target) > 0.01f)
+                rate = groundAccel;
+            else
+                rate = groundDecel;
+        }
+        else
+        {
+            rate = Mathf.Abs(target) > 0.01f ? airAccel : airDecel;
+        }
+
+        velocity.x = Mathf.MoveTowards(velocity.x, target, rate * Time.fixedDeltaTime);
+    }
+
+    void ApplyGravity(ref Vector2 velocity)
+    {
+        if (_wallSliding)
+            return;
+
+        // Committed jump: full arc, slightly heavier on the way down.
+        if (velocity.y < 0f)
+        {
+            velocity.y += Physics2D.gravity.y * _body.gravityScale * (fallMultiplier - 1f) * Time.fixedDeltaTime;
+            if (velocity.y < -maxFallSpeed)
+                velocity.y = -maxFallSpeed;
+        }
+    }
+
+    void TryJump(ref Vector2 velocity)
+    {
+        if (_jumpBuffer <= 0f)
+            return;
+
+        if (CanWallJump())
+        {
+            int jumpDir = -_lastWallDir;
+            velocity = new Vector2(jumpDir * wallJumpSpeedX, wallJumpSpeedY);
+            _facing = jumpDir;
+            _sprite.flipX = _facing < 0;
+            _wallSliding = false;
+            _wallJumpLock = wallJumpLockTime;
+            _jumpBuffer = 0f;
+            _coyote = 0f;
+            _wallCoyote = 0f;
+            DisableWallSensors();
+            _animator.SetBool(WallSlideHash, false);
+            _animator.SetBool(GroundedHash, false);
+            _animator.SetTrigger(JumpHash);
+            return;
+        }
+
+        if (_coyote <= 0f)
+            return;
+
+        velocity.y = jumpSpeed;
+        _grounded = false;
+        _coyote = 0f;
+        _jumpBuffer = 0f;
+        groundSensor?.Disable(0.12f);
+        _animator.SetBool(GroundedHash, false);
+        _animator.SetTrigger(JumpHash);
+    }
+
+    bool CanWallJump()
+    {
+        if (_wallJumpLock > 0f)
+            return false;
+        if (_grounded)
+            return false;
+        if (!_wallSliding && _coyote > 0f)
+            return false;
+        return _wallCoyote > 0f && _lastWallDir != 0;
+    }
+
     void UpdateGrounded()
     {
-        bool sensorGrounded = groundSensor != null && groundSensor.IsActive;
-        if (sensorGrounded)
-            _coyoteCounter = coyoteTime;
+        bool onGround = groundSensor != null && groundSensor.IsActive;
+        if (onGround)
+            _coyote = coyoteTime;
         else
-            _coyoteCounter -= Time.deltaTime;
+            _coyote -= Time.deltaTime;
 
-        _grounded = sensorGrounded && !_wallSliding;
+        _grounded = onGround && !_wallSliding;
         _animator.SetBool(GroundedHash, _grounded);
     }
 
-    void UpdateWallSlide(float moveX)
+    void UpdateWallSlide()
     {
-        bool touchingRight = IsTouchingWall(wallSensorR1, wallSensorR2);
-        bool touchingLeft = IsTouchingWall(wallSensorL1, wallSensorL2);
-        bool falling = _body.linearVelocity.y <= 0.05f;
+        bool right = IsTouchingWall(wallSensorR1, wallSensorR2);
+        bool left = IsTouchingWall(wallSensorL1, wallSensorL2);
+        bool falling = _body.linearVelocity.y <= 0.08f;
         bool inAir = groundSensor == null || !groundSensor.IsActive;
 
         int wallDir = 0;
-        if (touchingRight)
+        if (right)
             wallDir = 1;
-        else if (touchingLeft)
+        else if (left)
             wallDir = -1;
 
         if (wallDir != 0 && inAir)
         {
             _lastWallDir = wallDir;
-            _wallCoyoteCounter = coyoteTime;
+            _wallCoyote = coyoteTime;
         }
         else
         {
-            _wallCoyoteCounter -= Time.deltaTime;
+            _wallCoyote -= Time.deltaTime;
         }
 
-        bool pushingAway = wallDir != 0 && moveX * wallDir < -0.1f;
-        _wallSliding = inAir && falling && wallDir != 0 && !pushingAway && _wallJumpLockCounter <= 0f;
+        bool holdingIntoWall = wallDir != 0 && _inputX * wallDir > 0.1f;
+        _wallSliding = inAir && falling && holdingIntoWall && _wallJumpLock <= 0f;
         _wallDir = _wallSliding ? wallDir : 0;
-
         _animator.SetBool(WallSlideHash, _wallSliding);
     }
 
-    static bool IsTouchingWall(PlayerSensor upper, PlayerSensor lower)
+    static bool IsTouchingWall(PlayerSensor a, PlayerSensor b)
     {
-        bool upperActive = upper != null && upper.IsActive;
-        bool lowerActive = lower != null && lower.IsActive;
-        return upperActive && lowerActive;
+        return a != null && b != null && a.IsActive && b.IsActive;
     }
 
-    void Face(float moveX)
+    void UpdateFacing()
     {
         if (_wallSliding)
         {
@@ -224,62 +372,11 @@ public class PlayerMovement : MonoBehaviour
             return;
         }
 
-        if (Mathf.Abs(moveX) < 0.01f || _wallJumpLockCounter > 0f)
+        if (_wallJumpLock > 0f || Mathf.Abs(_inputX) < 0.01f)
             return;
 
-        _facing = moveX > 0f ? 1 : -1;
+        _facing = _inputX > 0f ? 1 : -1;
         _sprite.flipX = _facing < 0;
-    }
-
-    void TryJump()
-    {
-        _jumpBufferCounter -= Time.deltaTime;
-        if (_jumpBufferCounter <= 0f)
-            return;
-
-        if (CanWallJump())
-        {
-            int jumpDir = -_lastWallDir;
-            _body.linearVelocity = new Vector2(jumpDir * wallJumpHorizontalForce, wallJumpVerticalForce);
-            _facing = jumpDir;
-            _sprite.flipX = _facing < 0;
-            _wallSliding = false;
-            _wallJumpLockCounter = wallJumpLockTime;
-            _jumpBufferCounter = 0f;
-            _coyoteCounter = 0f;
-            _wallCoyoteCounter = 0f;
-
-            DisableWallSensors();
-            _animator.SetBool(WallSlideHash, false);
-            _animator.SetBool(GroundedHash, false);
-            _animator.SetTrigger(JumpHash);
-            return;
-        }
-
-        if (_coyoteCounter <= 0f)
-            return;
-
-        _body.linearVelocity = new Vector2(_body.linearVelocity.x, jumpForce);
-        _grounded = false;
-        _coyoteCounter = 0f;
-        _jumpBufferCounter = 0f;
-        groundSensor?.Disable(0.15f);
-        _animator.SetBool(GroundedHash, false);
-        _animator.SetTrigger(JumpHash);
-    }
-
-    bool CanWallJump()
-    {
-        if (_wallJumpLockCounter > 0f)
-            return false;
-        if (_grounded)
-            return false;
-        if (!_wallSliding && _coyoteCounter > 0f)
-            return false;
-        if (_wallCoyoteCounter <= 0f || _lastWallDir == 0)
-            return false;
-
-        return true;
     }
 
     void DisableWallSensors()
@@ -290,14 +387,14 @@ public class PlayerMovement : MonoBehaviour
         wallSensorL2?.Disable(wallSensorDisableTime);
     }
 
-    void UpdateAnimator(float moveX)
+    void UpdateAnimator()
     {
         _animator.SetFloat(AirSpeedYHash, _body.linearVelocity.y);
 
         if (_wallSliding || !_grounded)
             return;
 
-        if (Mathf.Abs(moveX) > 0.01f)
+        if (Mathf.Abs(_inputX) > 0.01f)
         {
             _idleDelay = 0.05f;
             _animator.SetInteger(AnimStateHash, 1);
@@ -309,7 +406,6 @@ public class PlayerMovement : MonoBehaviour
             _animator.SetInteger(AnimStateHash, 0);
     }
 
-    // Called from HeroKnight_WallSlide animation event.
     void AE_SlideDust()
     {
         if (slideDust == null || !_wallSliding)

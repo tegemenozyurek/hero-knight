@@ -413,6 +413,7 @@ GameObject:
   - component: {fileID: 519420031}
   - component: {fileID: 519420029}
   - component: {fileID: 519420030}
+  - component: {fileID: 519420033}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -532,12 +533,32 @@ Transform:
   m_GameObject: {fileID: 519420028}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: -10}
+  m_LocalPosition: {x: -12, y: 1.2, z: -10}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &519420033
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 519420028}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3e8c7a91b5d24f6e8a1c0d4b7f9e2a16, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CameraFollow
+  target: {fileID: 2001116486}
+  offset: {x: 0, y: 1.2}
+  smoothTime: 0.18
+  lookAheadDistance: 1.6
+  lookAheadSmoothTime: 0.35
+  useBounds: 0
+  minBounds: {x: -20, y: -10}
+  maxBounds: {x: 20, y: 10}
 --- !u!1 &619394800
 GameObject:
   m_ObjectHideFlags: 0
@@ -640,7 +661,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!50 &1199521295
 Rigidbody2D:
   serializedVersion: 5
@@ -947,7 +968,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!50 &1602417547
 Rigidbody2D:
   serializedVersion: 5
@@ -1398,7 +1419,7 @@ Transform:
   m_GameObject: {fileID: 2001116482}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: -12, y: 0.05, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -1443,15 +1464,24 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ff4f970a814494977beebc741bc3265a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerMovement
-  moveSpeed: 5
-  jumpForce: 8
-  coyoteTime: 0.1
-  jumpBufferTime: 0.1
-  wallSlideSpeed: 1.6
-  wallJumpHorizontalForce: 6.5
-  wallJumpVerticalForce: 8
-  wallJumpLockTime: 0.18
-  wallSensorDisableTime: 0.2
+  walkSpeed: 4.4
+  groundAccel: 36
+  groundDecel: 54
+  turnDecel: 72
+  airAccel: 9
+  airDecel: 6
+  inputDeadzone: 0.2
+  jumpSpeed: 13.2
+  gravityScale: 3.5
+  fallMultiplier: 1.4
+  maxFallSpeed: 16
+  coyoteTime: 0.09
+  jumpBufferTime: 0.12
+  wallSlideSpeed: 2.4
+  wallJumpSpeedX: 5.6
+  wallJumpSpeedY: 9.2
+  wallJumpLockTime: 0.1
+  wallSensorDisableTime: 0.1
   groundSensor: {fileID: 1659613543}
   wallSensorR1: {fileID: 262553008}
   wallSensorR2: {fileID: 499446922}
@@ -1617,7 +1647,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!50 &2139062052
 Rigidbody2D:
   serializedVersion: 5
@@ -1765,6 +1795,53 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &880011000
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 880011001}
+  - component: {fileID: 880011002}
+  m_Layer: 0
+  m_Name: Parkour
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &880011001
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 880011000}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &880011002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 880011000}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8f2a4c6e1b934d07a5c8e9f0d1b2a3c4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ParkourCourse
+  platformSprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
+  player: {fileID: 2001116486}
+  killY: -8
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -1775,3 +1852,4 @@ SceneRoots:
   - {fileID: 2139062055}
   - {fileID: 1199521298}
   - {fileID: 1602417550}
+  - {fileID: 880011001}

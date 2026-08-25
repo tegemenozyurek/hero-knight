@@ -7,7 +7,8 @@ public class PlayerSensor : MonoBehaviour
 
     readonly Collider2D[] _hits = new Collider2D[MaxHits];
     CircleCollider2D _collider;
-    Transform _root;
+    Rigidbody2D _body;
+    int _overlapCount;
     float _disableTimer;
 
     public bool IsActive
@@ -17,15 +18,20 @@ public class PlayerSensor : MonoBehaviour
             if (_disableTimer > 0f)
                 return false;
 
-            return HasOverlap();
+            return _overlapCount > 0 || HasOverlap();
         }
     }
 
     void Awake()
     {
         _collider = GetComponent<CircleCollider2D>();
-        _root = transform.root;
+        _body = GetComponentInParent<Rigidbody2D>();
         _collider.isTrigger = true;
+    }
+
+    void OnEnable()
+    {
+        _overlapCount = 0;
     }
 
     void Update()
@@ -37,14 +43,34 @@ public class PlayerSensor : MonoBehaviour
     public void Disable(float duration)
     {
         _disableTimer = duration;
+        _overlapCount = 0;
+    }
+
+    void OnTriggerEnter2D(Collider2D other)
+    {
+        if (IsOwnCollider(other))
+            return;
+
+        _overlapCount++;
+    }
+
+    void OnTriggerExit2D(Collider2D other)
+    {
+        if (IsOwnCollider(other))
+            return;
+
+        _overlapCount = Mathf.Max(0, _overlapCount - 1);
     }
 
     bool HasOverlap()
     {
+        if (_collider == null)
+            return false;
+
         float scale = Mathf.Max(
             Mathf.Abs(transform.lossyScale.x),
             Mathf.Abs(transform.lossyScale.y));
-        float radius = _collider.radius * scale;
+        float radius = Mathf.Max(0.02f, _collider.radius * scale);
 
         ContactFilter2D filter = new ContactFilter2D();
         filter.NoFilter();
@@ -53,15 +79,21 @@ public class PlayerSensor : MonoBehaviour
         int count = Physics2D.OverlapCircle(transform.position, radius, filter, _hits);
         for (int i = 0; i < count; i++)
         {
-            Collider2D hit = _hits[i];
-            if (hit == null || hit == _collider)
-                continue;
-            if (hit.transform.root == _root)
-                continue;
-
-            return true;
+            if (!IsOwnCollider(_hits[i]))
+                return true;
         }
 
         return false;
+    }
+
+    bool IsOwnCollider(Collider2D other)
+    {
+        if (other == null || other == _collider)
+            return true;
+
+        if (_body != null && other.attachedRigidbody == _body)
+            return true;
+
+        return other.transform.root == transform.root;
     }
 }
