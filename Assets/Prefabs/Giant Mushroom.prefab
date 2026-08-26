@@ -16,7 +16,7 @@ GameObject:
   - component: {fileID: 2054790369438838473}
   - component: {fileID: 3141592653589793238}
   m_Layer: 0
-  m_Name: Fast Mushroom
+  m_Name: Giant Mushroom
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -31,8 +31,8 @@ Transform:
   m_GameObject: {fileID: 6134116966860351346}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -6.78, y: 0.95, z: 0}
-  m_LocalScale: {x: 2, y: 2, z: 2}
+  m_LocalPosition: {x: -5.39, y: 1.4, z: 0}
+  m_LocalScale: {x: 4, y: 4, z: 4}
   m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 0}
@@ -87,7 +87,7 @@ SpriteRenderer:
   m_SortingOrder: 2
   m_MaskInteraction: 0
   m_Sprite: {fileID: 4723107735738678597, guid: f8b30c2afe165d645b54d500a9c30862, type: 3}
-  m_Color: {r: 0, g: 0.7575803, b: 1, a: 1}
+  m_Color: {r: 0.19339621, g: 1, b: 0.30092636, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
@@ -234,6 +234,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b7e2c14a9f834c6d8a1e5b0c3d7f9248, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MushroomAttributes
-  maxHealth: 2
-  moveSpeed: 2.7
-  chaseSpeed: 3.9
+  maxHealth: 6
+  walkSpeed: 0.8
+  chaseSpeed: 1.35
+  damage: 2
+  useAttack2: 1

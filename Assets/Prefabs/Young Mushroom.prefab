@@ -235,5 +235,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MushroomAttributes
   maxHealth: 2
-  moveSpeed: 1.45
+  walkSpeed: 1.45
   chaseSpeed: 2.4
+  damage: 1
