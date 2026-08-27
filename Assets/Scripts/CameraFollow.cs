@@ -22,23 +22,62 @@ public class CameraFollow : MonoBehaviour
     void Awake()
     {
         _cameraZ = transform.position.z;
-
-        if (target == null)
-        {
-            GameObject player = GameObject.Find("Player");
-            if (player != null)
-                target = player.transform;
-        }
-
-        if (target != null)
-            _targetSprite = target.GetComponent<SpriteRenderer>();
+        ResolveTarget();
+        SnapToTarget();
     }
 
     void LateUpdate()
     {
+        if (!IsSceneObject(target))
+            ResolveTarget();
+
         if (target == null)
             return;
 
+        transform.position = Vector3.SmoothDamp(transform.position, DesiredPosition(), ref _velocity, smoothTime);
+    }
+
+    void ResolveTarget()
+    {
+        if (IsSceneObject(target))
+        {
+            CacheSprite();
+            return;
+        }
+
+        target = null;
+
+        PlayerMovement player = FindFirstObjectByType<PlayerMovement>();
+        if (player != null)
+            target = player.transform;
+        else
+        {
+            GameObject found = GameObject.Find("Player");
+            if (found != null && IsSceneObject(found.transform))
+                target = found.transform;
+        }
+
+        CacheSprite();
+    }
+
+    void CacheSprite()
+    {
+        _targetSprite = target != null ? target.GetComponent<SpriteRenderer>() : null;
+    }
+
+    void SnapToTarget()
+    {
+        if (target == null)
+            return;
+
+        _lookAhead = 0f;
+        _lookAheadVelocity = 0f;
+        _velocity = Vector3.zero;
+        transform.position = DesiredPosition();
+    }
+
+    Vector3 DesiredPosition()
+    {
         float facing = 1f;
         if (_targetSprite != null)
             facing = _targetSprite.flipX ? -1f : 1f;
@@ -57,6 +96,11 @@ public class CameraFollow : MonoBehaviour
             desired.y = Mathf.Clamp(desired.y, minBounds.y, maxBounds.y);
         }
 
-        transform.position = Vector3.SmoothDamp(transform.position, desired, ref _velocity, smoothTime);
+        return desired;
+    }
+
+    static bool IsSceneObject(Transform t)
+    {
+        return t != null && t.gameObject.scene.IsValid();
     }
 }
